@@ -39,7 +39,7 @@ video{width:100%;max-height:70vh;background:#000;border-radius:12px;}
   <div class="roles" id="roles"></div>
   <div id="lista"></div>
   <div class="card faq" id="faq"></div>
-  <div class="version-portal">Portal SSTA · versión v103</div>
+  <div class="version-portal">Portal SSTA · versión v104</div>
 </div>
 </div>
 <script src="empresa.js"></script>
@@ -54,7 +54,7 @@ const $ = UI.$;
 const ROLES = [['todos', 'Todos'], ['campo', 'Trabajador y supervisor'], ['sst', 'SST'], ['comite', 'Comités'], ['gerencia', 'Gerencia'], ['asesor', 'Asesor']];
 const GUIAS = [
   { id: 'empezar', ic: '🚀', rol: ['todos'], t: 'Entrar al portal e instalarlo en el celular', href: 'index.html', video: 'entrar',
-    pasos: ['Abre el enlace que te dio el responsable de SST (o escanea el QR). Si te pide el código de la empresa, escríbelo una sola vez.', 'Si aparece 🔑 Clave, escribe la clave del portal que te dieron: queda guardada en ese celular.', 'Si la empresa usa usuarios con nombre, toca 👤 Entrar y escribe tu usuario y tu clave.', 'Para tenerlo como app: en Android, menú ⋮ → «Instalar aplicación»; en iPhone, Safari → Compartir → «Agregar a inicio».', 'Usa el buscador del inicio para llegar rápido a un formato.'],
+    pasos: ['Abre el enlace que te dio el responsable de SST (o escanea el QR). Si te pide el código de la empresa, escríbelo una sola vez.', 'Si aparece 🔑 Clave, escribe la clave del portal que te dieron: queda guardada en ese celular.', 'Si la empresa usa usuarios con nombre, toca 👤 Entrar y escribe tu usuario y tu clave.', 'Para tenerlo como app: en Android, menú ⋮ → «Instalar aplicación»; en iPhone, Safari → Compartir → «Agregar a inicio».', 'El inicio está en el orden del mes: «En cada jornada» (ATS, permisos, charlas) y luego los pasos 1 a 5. Arriba, el cronograma marca hoy y qué toca; también puedes usar el buscador.'],
     tips: ['Sin señal también funciona: lo que guardes queda «⏳ pendiente» y se envía solo cuando vuelva la señal. No borres los datos del navegador mientras haya pendientes.'] },
   { id: 'permisos', ic: '📝', rol: ['campo'], t: 'Permisos de trabajo (alturas, caliente, confinados, izajes, eléctrico)', href: 'index.html', video: '',
     pasos: ['En el inicio, entra al permiso que necesitas.', 'Diligencia cada sección: trabajo, ubicación, personal, verificaciones y peligros. Debajo de cada cédula aparece si la persona está habilitada.', 'Firman en pantalla quienes deben firmar y toca Guardar: el permiso queda con su código.', 'Para cerrarlo al terminar, abre el permiso con su código y registra el cierre con su firma.'],
@@ -103,7 +103,7 @@ const FAQ = [['¿Qué pasa si no hay señal?', 'Todo se guarda en el celular y q
   ['¿Quién ve los datos de salud?', 'Solo administrador y SST. Del concepto médico se guarda si es apto y sus restricciones; nunca el diagnóstico.'],
   ['¿Cómo saco un PDF?', 'Toca el botón 🖨️; en la ventana de impresión elige «Guardar como PDF».'],
   ['¿Cómo cambio de empresa?', 'Al pie del inicio, «cambiar», o abre el enlace de la otra empresa. Primero deben estar enviados los pendientes.'],
-  ['Algo no funciona', 'Abre 🩺 Estado en el inicio: prueba cada servidor y dice qué falla. Envíale una captura al responsable de SST.']];
+  ['Algo no funciona', 'Abre Estado (arriba en el inicio): prueba cada servidor y dice qué falla. Envíale una captura al responsable de SST.']];
 let rol = 'todos';
 $('roles').innerHTML = ROLES.map(([k, n])=> '<button type="button" data-rol="' + k + '"' + (k === rol ? ' class="on"' : '') + '>' + esc(n) + '</button>').join('');
 const visibles = ()=> { const q = UI.norm($('buscar').value).trim();

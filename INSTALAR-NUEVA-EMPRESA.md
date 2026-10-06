@@ -230,6 +230,25 @@ En **Auditorías** quedó la lista de verificación **ISO 9001:2015** por capít
 
 ---
 
+
+### Inicio en el orden del mes (v104)
+
+El inicio ya no agrupa por tipo de formato sino por **cuándo se hace** en el mes:
+
+| Sección | Cuándo | Qué hay |
+|---|---|---|
+| En cada jornada | Todos los días, en campo | ATS, permisos, preoperacionales, charla, personal autorizado, inspección de EPP, permisos abiertos, reportar un evento |
+| 1. Planear el mes | Días 1 a 5 | Plan anual, personal habilitado (vencimientos y PILA), inspecciones planeadas, contratistas |
+| 2. Ejecutar los programas | Durante el mes | Inducción, EPP, salud, alto riesgo, químicos, emergencias, PESV, ambiental, calidad |
+| 3. Reunir los comités | Una vez al mes | COPASST y Comité de Convivencia |
+| 4. Medir y cerrar el mes | Últimos 5 días | Indicadores, plan de acción, tablero de la gerencia |
+| 5. Revisar y mejorar | Cada trimestre y al año | Auditorías, revisión por la dirección, matriz de peligros, documental y kit |
+| Administrar el portal | Cuando haga falta | Panel del asesor, usuarios y respaldo |
+
+- Arriba, un **cronograma del mes** marca hoy y dice qué toca; tocar una fila abre esa sección.
+- Íconos de línea en vez de emojis y una sola letra en todo el portal (IBM Plex Sans), que va dentro del sitio: sin señal se ve igual.
+- Al buscar, solo quedan las secciones con resultados y cada una dice cuántos tiene.
+
 ## Vender el portal a varias empresas (sitio multiempresa, v99)
 
 En vez de un sitio por empresa, **tú publicas UN sitio con tu marca** y cada empresa entra con su código. Así una actualización del sitio les llega a todas a la vez, y los servidores se actualizan con un solo comando.

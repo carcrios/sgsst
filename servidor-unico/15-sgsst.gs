@@ -73,7 +73,7 @@ function modulo_sgsst_() {
    Avisos diarios por correo: ▶ Ejecutar → instalarAvisosDiarios (una vez).
    ============================================================ */
 
-const VERSION_SGSST = 'v103';   // la muestra el panel del asesor para saber qué clientes están desactualizados
+const VERSION_SGSST = 'v104';   // la muestra el panel del asesor para saber qué clientes están desactualizados
 const API_TOKEN = tokenPortal_();
 const CORREOS_AVISO = correosPortal_();
 // Otras hojas que se copian en el respaldo semanal junto con esta (permisos, ATS,
