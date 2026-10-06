@@ -223,7 +223,7 @@ const Empresa = (function () {
     'reportes.html': 'reportes', 'habilitacion.html': 'habilitacion', 'plan-accion.html': 'plan', 'inspecciones.html': 'inspecciones', 'indicadores.html': 'indicadores',
     'copasst.html': 'copasst', 'convivencia.html': 'convivencia', 'auditorias.html': 'auditorias',
     'plan-anual.html': 'plananual', 'peligros.html': 'peligros', 'emergencias.html': 'emergencias', 'salud.html': 'salud', 'documental.html': 'documental', 'revision-direccion.html': 'revision',
-    'contratistas.html': 'contratistas', 'usuarios.html': 'usuarios', 'entrega-epp.html': 'dotacion', 'induccion.html': 'induccion', 'programas.html': 'programas', 'pesv.html': 'pesv', 'gerencia.html': 'gerencia', 'ambiental.html': 'ambiental', 'quimicos.html': 'quimicos', 'documentos.html': 'kit', 'calidad.html': 'calidad', 'asesor.html': 'asesor'
+    'contratistas.html': 'contratistas', 'usuarios.html': 'usuarios', 'entrega-epp.html': 'dotacion', 'induccion.html': 'induccion', 'programas.html': 'programas', 'pesv.html': 'pesv', 'gerencia.html': 'gerencia', 'ambiental.html': 'ambiental', 'quimicos.html': 'quimicos', 'documentos.html': 'kit', 'calidad.html': 'calidad', 'asesor.html': 'asesor', 'cierre-mes.html': 'cierre', 'evidencias.html': 'evidencias', 'preoperacional.html': 'preop'
   };
 
   function formato(id) {
@@ -231,6 +231,27 @@ const Empresa = (function () {
   }
   function codigo(id) { return formato(id).codigo || id; }
   function moduloActivo(k) { return !E.modulos || E.modulos[k] !== false; }
+  /* ── Quién ve qué (v106) ──
+     PUBLICO: lo de campo, como estaba el portal de INDIMON (cualquiera, sin usuario).
+     Lo demás es el «Sistema de gestión»: con usuarios, cada rol ve lo suyo; Administrador y SST, todo. */
+  const PUBLICO = ['caliente', 'alturas', 'confinados', 'izajes', 'electrico', 'ats', 'asistencia', 'personal', 'epp', 'brigadistas', 'tablero', 'reportes', 'preop'];
+  const ACCESO_FABRICA = {
+    supervisor: ['habilitacion', 'inspecciones', 'plan', 'contratistas', 'dotacion', 'induccion', 'emergencias', 'pesv', 'programas', 'quimicos', 'peligros'],
+    comite: ['copasst', 'convivencia', 'inspecciones', 'plan', 'indicadores', 'peligros', 'auditorias', 'plananual', 'habilitacion'],
+    consulta: ['gerencia', 'indicadores', 'plan', 'plananual', 'cierre', 'evidencias', 'auditorias', 'revision', 'documental', 'kit', 'peligros', 'habilitacion', 'calidad', 'ambiental', 'copasst']
+  };
+  const esPublico = (m) => !m || m === 'externo' || PUBLICO.indexOf(m) !== -1;
+  function accesoRol(m, rol) {
+    if (esPublico(m) || rol === 'admin' || rol === 'sst') return true;
+    const t = Object.assign({}, ACCESO_FABRICA, E.acceso || {});
+    return Array.isArray(t[rol]) && t[rol].indexOf(m) !== -1;
+  }
+  /** Tabla en uso (fábrica + lo que la empresa cambió en EMPRESA.acceso), para mostrarla. */
+  function tablaAcceso() { return Object.assign({}, ACCESO_FABRICA, E.acceso || {}); }
+  /** Rol de quien está en este equipo (solo si el servidor usa usuarios y hay sesión). */
+  function rolActual() {
+    try { return typeof Sesion !== 'undefined' && Sesion.modo() && Sesion.yo() ? Sesion.rol() : null; } catch (e) { return null; }
+  }
   function moduloDeHref(href) {
     const h = String(href || '');
     if (/^https?:/i.test(h)) return 'externo';
@@ -301,7 +322,9 @@ const Empresa = (function () {
       const m = moduloDeHref(a.getAttribute('href'));
       // Los formularios de Google del inicio son de INDIMON: en otra empresa no salen.
       const fuera = (m === 'externo' && !original) || (m && m !== 'externo' && !moduloActivo(m));
-      if (fuera) a.classList.add('oculto-empresa');
+      // Con usuario: lo que su rol no ve tampoco sale en el inicio.
+      const rol = rolActual();
+      if (fuera || (rol && !accesoRol(m, rol))) a.classList.add('oculto-empresa');
     });
     document.querySelectorAll('details.sub-item').forEach((d) => {
       const vis = d.querySelectorAll('a.card:not(.oculto-empresa)').length;
@@ -345,7 +368,7 @@ const Empresa = (function () {
   else if (document.body) iniciar();
 
   return {
-    original, formato, codigo, moduloActivo, aplicar,
+    original, formato, codigo, moduloActivo, aplicar, moduloDeHref, esPublico, accesoRol, rolActual, tablaAcceso,
     logo: () => E.logo,
     producto: PRODUCTO,
     pie: () => PRODUCTO + ' · ' + (original ? 'INDIMON' : (E.nombreCorto || E.nombre))

@@ -65,7 +65,8 @@
   </div>
   <button type="button" class="btn ghost" id="btnExcel">⬆️ Cargar inventario desde Excel</button>
   <button type="button" class="btn ghost" id="btnPdfInv">🖨️ PDF: inventario y vencimientos</button>
-  <div class="version-portal">Portal SSTA · versión v104</div>
+  <button type="button" class="btn ghost" id="btnQrTodos">🏷️ Etiquetas QR del inventario</button>
+  <div class="version-portal">Portal SSTA · versión v106</div>
 </div>
 
 <!-- ═══════ EQUIPO ═══════ -->
@@ -88,6 +89,7 @@
     <div class="field"><label>Estado</label><select id="eqActivo"><option value="1">En uso</option><option value="0">De baja</option></select></div>
     <button type="button" class="btn amber" id="btnGuardarEq">Guardar</button>
     <button type="button" class="btn ghost" id="btnInspEq">✅ Inspeccionar este equipo</button>
+    <button type="button" class="btn ghost" id="btnQrEq">🏷️ Etiqueta QR para pegar en el equipo</button>
     <div class="status-msg" id="msgEq"></div>
   </div>
   <div class="card" id="cardHistEq" hidden>
@@ -147,6 +149,7 @@
 <script src="registros.js"></script>
 <script src="inspecciones-plantillas.js"></script>
 <script src="importar.js"></script>
+<script src="qr.js"></script>
 <script>
 OfflineBanner.init();
 OutboxBadge.init();
@@ -251,7 +254,7 @@ function abrirEquipo(id){
   $('eqCodigo').value = r.codigo || ''; $('eqNombre').value = r.nombre || ''; $('eqUbic').value = r.ubicacion || ''; $('eqFrec').value = r.frecuencia || 'mensual';
   $('eqActivo').value = r.activo === false ? '0' : '1';
   pintarVenc(r.vencimientos || {});
-  $('btnInspEq').hidden = !eqActual; $('msgEq').textContent = '';
+  $('btnInspEq').hidden = !eqActual; $('btnQrEq').hidden = !eqActual; $('msgEq').textContent = '';
   const hist = eqActual ? inspecciones.filter((i)=> i.resumen.equipoId === id).sort((a, b)=> String(b.resumen.fecha).localeCompare(String(a.resumen.fecha))) : [];
   $('cardHistEq').hidden = !hist.length;
   $('histEq').innerHTML = hist.map((i)=> '<button type="button" class="item ' + (i.resumen.resultado === 'NO CONFORME' ? 'mal' : 'ok') + '" data-insp="' + esc(i.id) + '"><div class="t">' + esc(UI.corta(i.resumen.fecha)) + ' · ' + esc(i.resumen.resultado) + '</div><div class="m">' + esc(i.resumen.inspector || '') + '</div></button>').join('');
@@ -279,10 +282,51 @@ $('btnGuardarEq').addEventListener('click', async ()=>{
   if (i === -1) equipos.push({ id, tipo:'equipo', resumen: res, pendiente: !!r.enCola }); else equipos[i].resumen = res;
   eqActual = Object.assign({ id }, res);
   $('msgEq').textContent = r.enCola ? '⏳ Guardado en el equipo; se envía al volver la señal.' : '✓ Guardado';
-  $('btnInspEq').hidden = false; $('eqCat').disabled = true;
+  $('btnInspEq').hidden = false; $('btnQrEq').hidden = false; $('eqCat').disabled = true;
   $('eqTitulo').textContent = (res.codigo ? res.codigo + ' · ' : '') + res.nombre;
 });
 $('btnInspEq').addEventListener('click', ()=> iniciarInspeccion(eqActual.categoria, eqActual));
+
+/* ── Etiquetas QR (v105): se pegan en el equipo; al escanear se abre su inspección ──
+   El enlace lleva el código de la empresa en un sitio multiempresa (?e=), así un celular
+   nuevo entra a la empresa correcta y vuelve a este equipo. */
+function enlaceEquipo(id){
+  const base = location.href.split(/[?#]/)[0].replace(/[^/]*$/, '');
+  const cod = typeof MultiEmpresa !== 'undefined' && MultiEmpresa.activo && EMPRESA.codigo ? '?e=' + encodeURIComponent(EMPRESA.codigo) : '';
+  return base + 'inspecciones.html' + cod + '#ins=' + encodeURIComponent(id);
+}
+function etiquetaHTML(e){
+  const r = e.resumen || e, p = pl(r.categoria);
+  let img = ''; try { img = QR.comoImagen(enlaceEquipo(e.id), { px: 360, margen: 2 }); } catch (err) { return ''; }
+  return '<td style="width:33.3%;padding:3mm;text-align:center;vertical-align:top;border:1px dashed #999;">' +
+    '<img src="' + UI.src(img) + '" alt="QR" style="width:40mm;height:40mm;image-rendering:pixelated;">' +
+    '<div style="font-size:13pt;font-weight:700;margin-top:1mm;">' + esc(r.codigo || '') + '</div>' +
+    '<div style="font-size:9pt;">' + esc(r.nombre || p.nombre) + '</div>' +
+    '<div style="font-size:8pt;color:#444;">' + esc(r.ubicacion || '') + '</div>' +
+    '<div style="font-size:7.5pt;margin-top:1mm;">Escanea con la cámara para inspeccionarlo</div><div style="font-size:7pt;color:#444;">' + esc(EMPRESA.nombreCorto || EMPRESA.nombre || '') + '</div></td>';
+}
+function imprimirEtiquetas(lista){
+  const celdas = lista.map(etiquetaHTML).filter(Boolean);
+  if (!celdas.length) { UI.toast('No hay equipos para las etiquetas.', 'mal'); return; }
+  const filas = []; for (let i = 0; i < celdas.length; i += 3) filas.push('<tr>' + celdas.slice(i, i + 3).join('') + (celdas.length - i < 3 ? '<td style="border:0;"></td>'.repeat(3 - (celdas.length - i)) : '') + '</tr>');
+  // 4 filas (12 etiquetas) por hoja carta
+  const hojas = []; for (let i = 0; i < filas.length; i += 4) hojas.push((i ? '' : UI.cabecera('SG-ETIQUETAS-QR', 'ETIQUETAS QR DE EQUIPOS E INSTALACIONES', 'Recorta y pega cada una en su equipo (mejor plastificada)')) + '<table style="border-collapse:collapse;width:100%;">' + filas.slice(i, i + 4).join('') + '</table>');
+  UI.imprimir(hojas);
+}
+$('btnQrEq').addEventListener('click', ()=> {
+  if (!eqActual) return;
+  const url = enlaceEquipo(eqActual.id), m = UI.modal('<h3>🏷️ Etiqueta QR</h3><p class="ayuda">Pégala en el equipo. Quien la escanee con la cámara del celular abre la inspección de <b>' + esc(eqActual.codigo || eqActual.nombre) + '</b> directamente.</p>' +
+    '<div style="text-align:center;"><canvas id="qrEq" style="width:220px;height:220px;image-rendering:pixelated;"></canvas><div style="font-size:12px;color:var(--muted);word-break:break-all;margin-top:6px;">' + esc(url) + '</div></div>' +
+    '<button type="button" class="btn amber" id="qrImp">🖨️ Imprimir la etiqueta</button><button type="button" class="btn ghost" data-cerrar>Cerrar</button>');
+  try { QR.dibujar(m.el.querySelector('#qrEq'), url, { px: 440, margen: 2 }); } catch (e) { m.el.querySelector('#qrEq').replaceWith(document.createTextNode('El enlace es demasiado largo para un QR.')); }
+  m.el.querySelector('#qrImp').addEventListener('click', ()=> { m.cerrar(); imprimirEtiquetas([Object.assign({ id: eqActual.id }, { resumen: eqActual })]); });
+});
+$('btnQrTodos').addEventListener('click', ()=> {
+  const l = equipos.filter((x)=> x.resumen.activo !== false).sort((a, b)=> String(a.resumen.categoria).localeCompare(String(b.resumen.categoria)) || String(a.resumen.codigo).localeCompare(String(b.resumen.codigo)));
+  if (!l.length) { UI.toast('El inventario está vacío.', 'mal'); return; }
+  if (l.length > 60 && !confirm('Son ' + l.length + ' etiquetas (' + Math.ceil(l.length / 12) + ' hojas). ¿Imprimirlas todas?')) return;
+  imprimirEtiquetas(l);
+});
 
 /* ── Inspeccionar ── */
 $('btnInspeccionar').addEventListener('click', ()=>{
@@ -676,7 +720,15 @@ document.addEventListener('click', (e)=>{
   if (e.target.closest('.screen.active [data-volver]')) { e.preventDefault(); show('scrLista'); pintar(); }
 });
 window.addEventListener('outbox-enviado', ()=> cargar());
-cargar().then(()=>{ if (location.hash.length > 1) { const id = decodeURIComponent(location.hash.slice(1)); if (/^INS-/.test(id)) verInspeccion(id); else if (/^EQP-/.test(id)) abrirEquipo(id); else if (id === 'cronograma' || id === 'listas') document.querySelector('#tabs [data-tab="' + id + '"]').click(); } });
+/* Enlaces directos: #INS-… abre una inspección, #EQP-… un equipo, #ins=EQP-… (etiqueta QR) su inspección nueva. */
+function abrirDesdeHash(){
+  if (location.hash.length < 2) return;
+  const id = decodeURIComponent(location.hash.slice(1)), q = /^ins=(EQP-[\w.-]+)$/.exec(id);
+  if (q) { const e = equipos.find((x)=> x.id === q[1]); if (e) iniciarInspeccion(e.resumen.categoria, Object.assign({ id: e.id }, e.resumen)); else if (equipos.length) UI.toast('Ese equipo no está en el inventario de esta empresa.', 'mal'); }
+  else if (/^INS-/.test(id)) verInspeccion(id); else if (/^EQP-/.test(id)) abrirEquipo(id); else if (id === 'cronograma' || id === 'listas') document.querySelector('#tabs [data-tab="' + id + '"]').click();
+}
+window.addEventListener('hashchange', abrirDesdeHash);
+cargar().then(abrirDesdeHash);
 </script>
 </body>
 </html>

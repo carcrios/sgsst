@@ -39,7 +39,7 @@ video{width:100%;max-height:70vh;background:#000;border-radius:12px;}
   <div class="roles" id="roles"></div>
   <div id="lista"></div>
   <div class="card faq" id="faq"></div>
-  <div class="version-portal">Portal SSTA · versión v104</div>
+  <div class="version-portal">Portal SSTA · versión v106</div>
 </div>
 </div>
 <script src="empresa.js"></script>
@@ -54,8 +54,11 @@ const $ = UI.$;
 const ROLES = [['todos', 'Todos'], ['campo', 'Trabajador y supervisor'], ['sst', 'SST'], ['comite', 'Comités'], ['gerencia', 'Gerencia'], ['asesor', 'Asesor']];
 const GUIAS = [
   { id: 'empezar', ic: '🚀', rol: ['todos'], t: 'Entrar al portal e instalarlo en el celular', href: 'index.html', video: 'entrar',
-    pasos: ['Abre el enlace que te dio el responsable de SST (o escanea el QR). Si te pide el código de la empresa, escríbelo una sola vez.', 'Si aparece 🔑 Clave, escribe la clave del portal que te dieron: queda guardada en ese celular.', 'Si la empresa usa usuarios con nombre, toca 👤 Entrar y escribe tu usuario y tu clave.', 'Para tenerlo como app: en Android, menú ⋮ → «Instalar aplicación»; en iPhone, Safari → Compartir → «Agregar a inicio».', 'El inicio está en el orden del mes: «En cada jornada» (ATS, permisos, charlas) y luego los pasos 1 a 5. Arriba, el cronograma marca hoy y qué toca; también puedes usar el buscador.'],
+    pasos: ['Abre el enlace que te dio el responsable de SST (o escanea el QR). Si te pide el código de la empresa, escríbelo una sola vez.', 'Si aparece 🔑 Clave, escribe la clave del portal que te dieron: queda guardada en ese celular.', 'Si la empresa usa usuarios con nombre, toca 👤 Entrar y escribe tu usuario y tu clave.', 'Para tenerlo como app: en Android, menú ⋮ → «Instalar aplicación»; en iPhone, Safari → Compartir → «Agregar a inicio».', 'El inicio tiene dos partes: «En cada jornada» (ATS, permisos, charlas, preoperacionales, reportar), que abre cualquiera, y el «Sistema de gestión» (pasos 1 a 5, cronograma del mes y pendientes), que pide entrar con tu usuario.'],
     tips: ['Sin señal también funciona: lo que guardes queda «⏳ pendiente» y se envía solo cuando vuelva la señal. No borres los datos del navegador mientras haya pendientes.'] },
+  { id: 'sistema', ic: '🔐', rol: ['todos'], t: 'El Sistema de gestión: quién ve qué', href: 'index.html', video: '',
+    pasos: ['Lo de campo (permisos, ATS, charlas, preoperacionales, inspección de EPP, personal habilitado y reportar un evento) está a la vista de todos, sin usuario.', 'Debajo está «Sistema de gestión»: toca «Entrar con mi usuario» y escribe tu usuario y tu clave.', 'Cada rol ve sus módulos: Supervisor, los de campo y control (inspecciones, plan de acción, contratistas, emergencias…); Comité, COPASST, Convivencia, inspecciones e indicadores; Solo consulta, el tablero de la gerencia, indicadores y evidencias; Administrador y SST, todo.', 'Si abres un módulo que tu rol no tiene, el portal te lo dice; pídeselo al administrador.', 'Para salir, «Salir» junto a tu nombre, arriba del sistema de gestión.'],
+    tips: ['Si la empresa aún no activa los usuarios, el sistema de gestión se abre con «Abrir el sistema de gestión» y lo ve cualquiera con el enlace: el administrador lo cierra activando los usuarios en «Usuarios y respaldo».', 'Los datos de salud los protege el servidor: solo Administrador y SST, aunque alguien abra la página.'] },
   { id: 'permisos', ic: '📝', rol: ['campo'], t: 'Permisos de trabajo (alturas, caliente, confinados, izajes, eléctrico)', href: 'index.html', video: '',
     pasos: ['En el inicio, entra al permiso que necesitas.', 'Diligencia cada sección: trabajo, ubicación, personal, verificaciones y peligros. Debajo de cada cédula aparece si la persona está habilitada.', 'Firman en pantalla quienes deben firmar y toca Guardar: el permiso queda con su código.', 'Para cerrarlo al terminar, abre el permiso con su código y registra el cierre con su firma.'],
     tips: ['Si alguien no está habilitado (curso vencido, sin concepto médico), el permiso lo advierte antes de guardar.'] },
@@ -67,6 +70,24 @@ const GUIAS = [
   { id: 'inspecciones', ic: '🔍', rol: ['campo', 'sst', 'comite'], t: 'Hacer una inspección', href: 'inspecciones.html', video: 'inspeccion',
     pasos: ['En Inspecciones toca ✅ Inspeccionar y elige qué vas a inspeccionar (extintor, arnés, área…) y cuál del inventario.', 'Responde cada pregunta C (cumple), NC (no cumple) o NA. «Todo cumple» marca lo que falte.', 'En cada NC escribe qué encontraste y toma la foto.', 'Escribe tu nombre, firma y guarda. Cada NC se vuelve una acción del plan de acción.', 'Gerenciales y del COPASST: elige ese «Tipo de inspección» y anota a los participantes; cada uno firma.'],
     tips: ['La pestaña Cronograma muestra lo programado frente a lo hecho en el año; toca una celda para hacer esa inspección.'] },
+  { id: 'preop', ic: '🔧', rol: ['campo', 'sst'], t: 'Preoperacional de un equipo', href: 'preoperacional.html', video: '',
+    pasos: ['En el inicio, «En cada jornada» → Preoperacional → el equipo (o escanea la etiqueta QR del equipo).', 'Responde cada página como en el formulario de siempre; las preguntas con * son obligatorias. Tu nombre se elige del personal y trae la cédula.', 'Si algo está «Malo», escribe qué encontraste y toma la foto.', 'Envía: queda en el SG-SST aunque no haya señal (se envía al volver). Si hubo algo en mal estado, puedes crear la acción para corregirlo.'],
+    tips: ['En Preoperacionales → Registros están todos, con su PDF y las respuestas en Excel (como la hoja de Google).', 'El de condiciones de salud solo lo ven Administrador y SST.'] },
+  { id: 'pendientes', ic: '📌', rol: ['todos'], t: 'Mis pendientes y el resumen del lunes', href: 'index.html', video: '',
+    pasos: ['En el inicio, debajo del cronograma del mes, está «Pendientes»: lo vencido primero y luego lo que vence pronto, de todos los módulos.', 'Con tu usuario, «Míos» muestra lo que tiene tu nombre como responsable; «Todos», lo de la empresa.', 'Toca un pendiente para abrirlo en su módulo y resolverlo.', 'Cada lunes llega a tu correo el resumen de lo tuyo para la semana (si tu usuario tiene correo).'],
+    tips: ['Para que algo te llegue a ti, tu nombre debe estar igual en el responsable de la acción o de la actividad del plan.', 'Los exámenes médicos solo los ven Administrador y SST.'] },
+  { id: 'plananual', ic: '🗓️', rol: ['sst', 'asesor'], t: 'Armar el plan anual de trabajo según la empresa', href: 'plan-anual.html', video: '',
+    pasos: ['Primero define el perfil de la empresa (trabajadores y clase de riesgo) y carga la matriz de peligros, los químicos y los vehículos si los hay.', 'En Plan anual de trabajo toca «Armar el plan según la empresa»: cada actividad propuesta dice por qué (estándar, peligro de la matriz, inventario).', 'Desmarca lo que no aplique y crea el plan; luego ajusta meses y responsables.', 'Con un plan ya hecho, «Sugerencias según la empresa» propone solo lo que le falta.'],
+    tips: ['Las actividades del mes aparecen en los pendientes de su responsable y en su correo del lunes.'] },
+  { id: 'cierre', ic: '📅', rol: ['sst', 'gerencia'], t: 'Cerrar el mes y sacar el informe mensual', href: 'cierre-mes.html', video: '',
+    pasos: ['En los últimos días del mes (o los primeros del siguiente) abre Cerrar el mes.', 'La lista de cierre revisa sola los datos de indicadores, los accidentes, las inspecciones, el COPASST, el plan anual, las acciones y el personal habilitado.', 'Resuelve lo que puedas con el botón Abrir de cada punto; lo que quede pendiente se explica en las observaciones.', 'Toca Cerrar el mes y saca el Informe del mes (PDF) para la gerencia, el COPASST o la ARL.'],
+    tips: ['Si el mes no se cierra, aparece en los pendientes del inicio hasta el día 10 del mes siguiente.'] },
+  { id: 'qr', ic: '🏷️', rol: ['sst', 'campo'], t: 'Etiquetas QR en los equipos', href: 'inspecciones.html', video: '',
+    pasos: ['En Inspecciones toca «Etiquetas QR del inventario» (o, dentro de un equipo, «Etiqueta QR»).', 'Imprime la hoja, recorta y pega cada etiqueta en su equipo (mejor plastificada).', 'Para inspeccionar, escanea la etiqueta con la cámara del celular: se abre la inspección de ese equipo.'],
+    tips: ['En el sitio de tu marca, la etiqueta lleva el código de la empresa: un celular nuevo entra a la empresa correcta sin escribirlo.'] },
+  { id: 'evidencias', ic: '🗂️', rol: ['sst', 'asesor'], t: 'Carpeta de evidencias y autoevaluación', href: 'evidencias.html', video: '',
+    pasos: ['Abre Carpeta de evidencias: cada estándar mínimo que le aplica a la empresa aparece con la evidencia que ya está en el portal.', 'Filtra por «Falta» o «Incompletos» y usa Abrir para ir al módulo donde se resuelve.', 'Saca el Índice de evidencias (PDF) para el auditor.', 'Con «Llevar a una autoevaluación» se crea la autoevaluación con la evidencia escrita y «cumple» sugerido en lo que está al día: revisa cada estándar y guarda.'],
+    tips: ['El porcentaje de la carpeta es una guía, no la calificación oficial de la Res. 0312.'] },
   { id: 'plan', ic: '✅', rol: ['sst', 'campo', 'comite'], t: 'Plan de acción: avances y cierre', href: 'plan-accion.html', video: 'plan',
     pasos: ['Todas las acciones (de inspecciones, reportes, auditorías, comités, calidad…) llegan aquí con su origen.', 'Abre una acción y anota los avances.', 'Al terminarla, ciérrala con la evidencia (foto o documento) y di si fue eficaz.', 'El correo diario avisa lo que vence o se venció.'] },
   { id: 'habilitacion', ic: '🪪', rol: ['sst'], t: 'Personal habilitado y carga desde Excel', href: 'habilitacion.html', video: 'excel',
@@ -100,6 +121,7 @@ const GUIAS = [
 const FAQ = [['¿Qué pasa si no hay señal?', 'Todo se guarda en el celular y queda «⏳ pendiente». Se envía solo cuando vuelve la señal (el número en la barra muestra cuántos faltan). No borres los datos del navegador ni desinstales la app mientras haya pendientes.'],
   ['Olvidé la clave del portal', 'Pídela al responsable de SST. Si la empresa usa usuarios con nombre, el administrador te puede dar una clave temporal.'],
   ['¿Dónde quedan los datos?', 'En la cuenta de Google de la empresa (hojas de cálculo en su Drive), no en el celular ni en el sitio. Cada semana se hace una copia de respaldo.'],
+  ['No veo el plan, los comités ni los indicadores', 'Están en «Sistema de gestión», al final del inicio: entra con tu usuario. Si con tu usuario no aparece un módulo, tu rol no lo tiene: pídeselo al administrador.'],
   ['¿Quién ve los datos de salud?', 'Solo administrador y SST. Del concepto médico se guarda si es apto y sus restricciones; nunca el diagnóstico.'],
   ['¿Cómo saco un PDF?', 'Toca el botón 🖨️; en la ventana de impresión elige «Guardar como PDF».'],
   ['¿Cómo cambio de empresa?', 'Al pie del inicio, «cambiar», o abre el enlace de la otra empresa. Primero deben estar enviados los pendientes.'],

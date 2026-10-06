@@ -50,7 +50,7 @@
   <div id="lista"><div class="empty">Cargando…</div></div>
   <button type="button" class="btn amber" id="btnNueva">+ Programar auditoría</button>
   <button type="button" class="btn ghost" id="btnPrograma">🖨️ Programa anual de auditorías (PDF)</button>
-  <div class="version-portal">Portal SSTA · versión v104</div>
+  <div class="version-portal">Portal SSTA · versión v106</div>
 </div>
 
 <div class="screen" id="scrAud"></div>
@@ -517,7 +517,20 @@ $('tabs').addEventListener('click', (e)=>{ const b = e.target.closest('[data-tab
 $('lista').addEventListener('click', (e)=>{ const b = e.target.closest('[data-id]'); if (b) abrir(b.dataset.id); });
 document.addEventListener('click', (e)=>{ const v = e.target.closest('[data-volver]'); if (v) { e.preventDefault(); show('scrLista'); pintar(); } });
 window.addEventListener('outbox-enviado', ()=> cargar());
-cargar().then(()=>{ if (location.hash.length > 1) abrir(decodeURIComponent(location.hash.slice(1))); });
+/* Desde la carpeta de evidencias (evidencias.html): autoevaluación nueva con la evidencia ya escrita
+   y «cumple» sugerido en lo que está al día. Quien audita revisa y confirma cada estándar. */
+function desdeEvidencias(){
+  let sug = null; try { sug = JSON.parse(sessionStorage.getItem('ssta-autoeval-sugerida') || 'null'); sessionStorage.removeItem('ssta-autoeval-sugerida'); } catch (e) {}
+  const P = sug && PLANTILLAS_AUDITORIA[sug.plantilla]; if (!P) return false;
+  aud = { id: SGSST.nuevoId('AUD'), nuevo: true, plantilla: sug.plantilla, tipoAuditoria: P.corto, titulo: P.corto + ' ' + anio(), fechaPlan: UI.hoy(), fechaEjecucion: '',
+    estado: 'PROGRAMADA', auditor: { nombre: Sesion.nombre() || '', cargo: '', independiente: true }, equipo: '', alcance: 'Autoevaluación con la carpeta de evidencias del portal', objetivo: '', criterios: P.criterios, areas: '', copasst: { participo: false, nombre: '' },
+    items: P.items.map((i)=> { const x = (sug.items || {})[i[0]] || {}; return { id: i[0], grupo: i[1], ref: i[2], valor: i[3], texto: i[4], r: x.r === 'C' ? 'C' : '', just: '', evid: String(x.evid || '').slice(0, 900), sev: 'ncMenor', hdesc: '' }; }),
+    hallazgos: [], auditados: '', conclusiones: '', fortalezas: '', firmaAuditor: '', firmaAuditado: '', auditadoNombre: '', acciones: [] };
+  pintarAud();
+  UI.toast('Autoevaluación preparada con la carpeta de evidencias: revisa cada estándar y guarda.');
+  return true;
+}
+cargar().then(()=>{ if (/[?&]sugerida=1/.test(location.search) && desdeEvidencias()) return; if (location.hash.length > 1) abrir(decodeURIComponent(location.hash.slice(1))); });
 </script>
 </body>
 </html>

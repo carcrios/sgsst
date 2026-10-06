@@ -219,7 +219,7 @@ const UI = (function () {
   window.addEventListener('afterprint', () => document.body.classList.remove('hp-lista'));
 
   /* ── Plan de acción compartido: cualquier módulo crea acciones ── */
-  const ORIGENES = ['Reporte de acto/condición', 'Incidente', 'Accidente de trabajo', 'Inspección planeada', 'Inspección de EPP', 'Auditoría', 'Autoevaluación Res. 0312', 'COPASST', 'Comité de convivencia', 'Revisión por la dirección', 'Matriz de peligros', 'Simulacro', 'Gestión del cambio', 'Matriz legal', 'Evaluación de proveedores', 'Batería psicosocial', 'Programa de alto riesgo', 'PESV', 'Contratistas', 'Ambiental', 'Sustancias químicas', 'Calidad', 'Asesor SST', 'Otro'];
+  const ORIGENES = ['Reporte de acto/condición', 'Incidente', 'Accidente de trabajo', 'Inspección planeada', 'Inspección de EPP', 'Auditoría', 'Autoevaluación Res. 0312', 'COPASST', 'Comité de convivencia', 'Revisión por la dirección', 'Matriz de peligros', 'Simulacro', 'Gestión del cambio', 'Matriz legal', 'Evaluación de proveedores', 'Batería psicosocial', 'Programa de alto riesgo', 'PESV', 'Contratistas', 'Ambiental', 'Sustancias químicas', 'Calidad', 'Asesor SST', 'Preoperacional', 'Otro'];
   /** Ventana para crear una acción ya relacionada con su origen. */
   function nuevaAccion(pre, alGuardar) {
     pre = pre || {};

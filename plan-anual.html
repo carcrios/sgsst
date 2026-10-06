@@ -38,7 +38,7 @@
   <div id="avisoSrv"></div><div id="avisoCopia"></div>
   <div class="field"><select id="anio"></select></div>
   <div id="contenido"><div class="empty">Cargando…</div></div>
-  <div class="version-portal">Portal SSTA · versión v104</div>
+  <div class="version-portal">Portal SSTA · versión v106</div>
 </div>
 </div>
 <script src="empresa.js"></script>
@@ -46,6 +46,7 @@
 <script src="common.js"></script>
 <script src="sgsst-ui.js"></script>
 <script src="registros.js"></script>
+<script src="plan-sugerido.js"></script>
 <script>
 OfflineBanner.init();
 OutboxBadge.init();
@@ -143,9 +144,12 @@ function pintar(){
   const c = $('contenido');
   if (!plan) {
     c.innerHTML = '<div class="empty">No hay plan de trabajo para ' + esc(anioSel) + '.</div>' +
-      '<button type="button" class="btn amber" id="crearPlantilla">Crear el plan ' + esc(anioSel) + ' con las actividades típicas</button>' +
+      '<button type="button" class="btn amber" id="crearSugerido">✨ Armar el plan ' + esc(anioSel) + ' según la empresa</button>' +
+      '<p class="ayuda" style="margin-top:-4px;">Con los estándares que le aplican, el número de trabajadores, los peligros de la matriz, los químicos, los vehículos y los contratistas que ya están en el portal. Antes de crearlo ves cada actividad y por qué se propone.</p>' +
+      '<button type="button" class="btn ghost" id="crearPlantilla">Crear el plan ' + esc(anioSel) + ' con las actividades típicas</button>' +
       '<button type="button" class="btn ghost" id="crearCopia">Copiar las actividades del plan ' + (Number(anioSel) - 1) + '</button>' +
       '<p class="ayuda">El plan anual de trabajo identifica metas, responsabilidades, recursos y cronograma, y lo firman el empleador y el responsable del SG-SST (Dec. 1072, art. 2.2.4.6.8; estándar 2.4.1).</p>';
+    $('crearSugerido').addEventListener('click', ()=> sugerencias(true));
     $('crearPlantilla').addEventListener('click', ()=> crear(PLANTILLA.map((p)=> ({ uid: SGSST.nuevoOpId(), ciclo: p[0], actividad: p[1], tipo: p[2], meses: p[3].slice(), auto: p[4], responsable: '', recursos: '', metaPersonas: '' }))));
     $('crearCopia').addEventListener('click', async ()=> { const ant = await SGSST.doc(idDe(Number(anioSel) - 1)); if (!ant) { UI.toast('No hay plan del año anterior.', 'mal'); return; } crear((ant.actividades || []).map((a)=> Object.assign({}, a, { uid: SGSST.nuevoOpId() }))); });
     return;
@@ -160,6 +164,42 @@ function pintar(){
     '<div id="panel"></div>';
   $('tabs').addEventListener('click', (e)=> { const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; pintar(); });
   ({ plan: pintarCrono, cap: pintarCap, datos: pintarDatos })[tab]($('panel'));
+}
+/* ── Plan armado según la empresa (plan-sugerido.js) ──
+   nuevo: crea el plan con lo marcado; si ya hay plan, agrega lo que le falta. */
+async function sugerencias(nuevo){
+  const m = UI.modal('<h3>✨ Plan según la empresa</h3><div id="sgCuerpo"><div class="empty">Revisando la empresa…</div></div>', true);
+  const r = await SGSST.listar('empresa,peligro,sustancia,vehiculo,conductor,contratista,comite');
+  const de2 = (t)=> r.rows.filter((x)=> x.tipo === t);
+  const pf = await SGSST.doc('EMPRESA-PERFIL') || {};
+  const ctx = { grupo: Number(pf.grupo0312) || 60, trabajadores: Number(pf.trabajadores) || 0, responsable: pf.responsableSST || '',
+    peligros: de2('peligro').map((x)=> x.resumen), sustancias: de2('sustancia').filter((x)=> x.estado !== 'Fuera de uso' && x.resumen.estado !== 'Fuera de uso').length,
+    vehiculos: de2('vehiculo').filter((x)=> x.estado !== 'INACTIVO').length, conductores: de2('conductor').length, contratistas: de2('contratista').filter((x)=> x.estado !== 'INACTIVO').length,
+    copasst: de2('comite').some((x)=> x.resumen.comite === 'copasst') };
+  let lista = PLAN_SUGERIDO.proponer(ctx);
+  if (!nuevo) lista = PLAN_SUGERIDO.faltantes(lista, plan.actividades);
+  const cuerpo = m.el.querySelector('#sgCuerpo');
+  const base = (pf.trabajadores ? '<b>' + esc(pf.trabajadores) + '</b> trabajadores, ' + esc(UI.textoGrupo(ctx.grupo)) : '<b>Sin perfil de la empresa</b>: se toman 60 estándares. Defínelo en el Tablero de la gerencia') + '. ' +
+    ctx.peligros.length + ' peligro(s) en la matriz, ' + ctx.sustancias + ' sustancia(s), ' + ctx.vehiculos + ' vehículo(s), ' + ctx.contratistas + ' contratista(s).';
+  if (!lista.length) { cuerpo.innerHTML = '<p class="ayuda">' + base + '</p><div class="aviso info">El plan ya tiene todo lo que se sugiere para esta empresa.</div><button type="button" class="btn ghost" data-cerrar>Cerrar</button>'; return; }
+  cuerpo.innerHTML = '<p class="ayuda">' + base + (ctx.responsable ? ' Responsable por defecto: <b>' + esc(ctx.responsable) + '</b>.' : '') + ' Desmarca lo que no aplique; después ajustas meses y responsables.</p>' +
+    CICLOS.map((c)=> { const l = lista.map((a, i)=> [a, i]).filter(([a])=> a.ciclo === c); return l.length ? '<div class="ciclo-h">' + c + '</div>' + l.map(([a, i])=>
+      '<label class="act" style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;"><input type="checkbox" data-i="' + i + '" checked style="width:20px;height:20px;margin-top:2px;flex:0 0 auto;"><span><span class="t">' + esc(a.actividad) + '</span>' +
+      '<span class="m" style="display:block;">' + esc(a.meses.length === 12 ? 'Todos los meses' : a.meses.map((x)=> MESES[x - 1]).join(', ')) + (a.auto ? ' · se marca sola' : '') + '</span>' +
+      '<span class="m" style="display:block;color:#2d5f8b;">' + esc(a.por) + '</span></span></label>').join('') : ''; }).join('') +
+    '<button type="button" class="btn amber" id="sgOk"></button><button type="button" class="btn ghost" data-cerrar>Cancelar</button><div class="status-msg" id="sgMsg"></div>';
+  const marcadas = ()=> [...cuerpo.querySelectorAll('[data-i]')].filter((x)=> x.checked).map((x)=> lista[+x.dataset.i]);
+  const txt = ()=> { const n = marcadas().length; cuerpo.querySelector('#sgOk').textContent = nuevo ? 'Crear el plan con ' + n + ' actividades' : 'Agregar ' + n + ' actividad(es) al plan'; };
+  cuerpo.addEventListener('change', txt); txt();
+  cuerpo.querySelector('#sgOk').addEventListener('click', async ()=> {
+    const l = marcadas().map((a)=> ({ uid: SGSST.nuevoOpId(), clave: a.clave, ciclo: a.ciclo, actividad: a.actividad, tipo: a.tipo, meses: a.meses.slice(), auto: a.auto, responsable: a.responsable, recursos: '', metaPersonas: a.metaPersonas || '' }));
+    if (!l.length) { cuerpo.querySelector('#sgMsg').textContent = 'Marca al menos una actividad.'; return; }
+    if (nuevo) { m.cerrar(); crear(l); return; }
+    const acts = (plan.actividades || []).concat(l), nuevoDoc = Object.assign({}, plan, { actividades: acts });
+    const rr = await SGSST.enviar({ action: 'parche', tipo: 'plananual', id: plan.id, campos: Object.assign({ actividades: acts }, resumenPlan(nuevoDoc)) });
+    if (!rr.ok) { cuerpo.querySelector('#sgMsg').textContent = 'No se guardó: ' + (rr.error || ''); return; }
+    m.cerrar(); UI.toast('✓ ' + l.length + ' actividad(es) agregada(s). Revisa responsables y meses.'); cargar();
+  });
 }
 async function crear(actividades){
   const doc = { anio: anioSel, actividades, ejec: {}, responsable: '', presupuesto: '', recursos: '', estado: 'EN EJECUCIÓN' };
@@ -181,9 +221,10 @@ function actHTML(a, i){
 function pintarCrono(panel){
   const acts = plan.actividades || [];
   panel.innerHTML = leyenda() + CICLOS.map((c)=> { const l = acts.map((a, i)=> [a, i]).filter(([a])=> a.ciclo === c); return l.length ? '<div class="ciclo-h">' + c + '</div>' + l.map(([a, i])=> actHTML(a, i)).join('') : ''; }).join('') +
-    '<button type="button" class="btn ghost" id="btnAct">+ Agregar actividad</button><button type="button" class="btn ghost" id="btnPdf">🖨️ Plan anual de trabajo (PDF)</button>';
+    '<button type="button" class="btn ghost" id="btnAct">+ Agregar actividad</button><button type="button" class="btn ghost" id="btnSug">✨ Sugerencias según la empresa</button><button type="button" class="btn ghost" id="btnPdf">🖨️ Plan anual de trabajo (PDF)</button>';
   enlazar(panel);
   $('btnAct').addEventListener('click', ()=> editarActividad(null));
+  $('btnSug').addEventListener('click', ()=> sugerencias(false));
   $('btnPdf').addEventListener('click', ()=> pdfPlan());
 }
 function pintarCap(panel){

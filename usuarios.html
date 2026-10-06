@@ -32,16 +32,17 @@ code{background:#eef1f5;border-radius:5px;padding:1px 5px;font-size:12.5px;}
   <div class="card" id="cardRespaldo" hidden></div>
   <div class="card">
     <h2>Qué puede hacer cada rol</h2>
-    <table class="roles">
+    <p class="ayuda">Lo de campo (permisos de trabajo, ATS, charlas, preoperacionales, inspección de EPP, personal habilitado y reportar un evento) lo abre <b>cualquiera, sin usuario</b>. El <b>Sistema de gestión</b> pide entrar y cada rol ve solo sus módulos:</p>
+    <table class="roles" id="tablaRoles">
       <tr><td>Administrador</td><td>Todo, y además crea usuarios, cambia roles y hace el respaldo.</td></tr>
-      <tr><td>SST</td><td>Todo el SG-SST: planear, salud, documentos, comités, auditorías, indicadores.</td></tr>
-      <tr><td>Supervisor / campo</td><td>Reportes, inspecciones, equipos, plan de acción, simulacros e ingresos de contratistas. No ve exámenes médicos ni ausentismo.</td></tr>
-      <tr><td>Integrante de comité</td><td>Actas y conformación de COPASST y Convivencia, quejas (con la clave del comité), reportes, inspecciones y acciones.</td></tr>
-      <tr><td>Solo consulta</td><td>Ve todo menos los datos de salud individuales; no cambia nada (gerencia, auditor externo).</td></tr>
+      <tr><td>SST</td><td>Todo el sistema de gestión, incluidos los datos de salud.</td></tr>
+      <tr><td>Supervisor / campo</td><td data-rol="supervisor">Registra en sus módulos. No ve exámenes médicos ni ausentismo.</td></tr>
+      <tr><td>Integrante de comité</td><td data-rol="comite">Actas y conformación de COPASST y Convivencia, quejas (con la clave del comité). No ve datos de salud.</td></tr>
+      <tr><td>Solo consulta</td><td data-rol="consulta">Mira, no cambia nada (gerencia, auditor externo). No ve datos de salud individuales.</td></tr>
     </table>
-    <p class="ayuda" style="margin-top:8px;">Sin usuario se puede seguir <b>reportando</b> actos y condiciones inseguras y creando acciones, y los permisos de trabajo siguen consultando el personal habilitado. Las claves de las personas no se guardan en ninguna parte: ni el administrador las puede ver.</p>
+    <p class="ayuda" style="margin-top:8px;">Para darle o quitarle módulos a un rol se cambia <code>acceso</code> en empresa.js (ver la guía de instalación). Las claves de las personas no se guardan en ninguna parte: ni el administrador las puede ver.</p>
   </div>
-  <div class="version-portal">Portal SSTA · versión v104</div>
+  <div class="version-portal">Portal SSTA · versión v106</div>
 </div>
 </div>
 <script src="empresa.js"></script>
@@ -57,6 +58,16 @@ if (typeof UpdateManager !== 'undefined') UpdateManager.init();
 const $ = UI.$;
 const ROLES = { admin: 'Administrador', sst: 'SST (todo el SG-SST)', supervisor: 'Supervisor / campo', comite: 'Integrante de comité', consulta: 'Solo consulta (gerencia, auditor)' };
 let usuarios = [], modo = false;
+/* Módulos que ve cada rol en el Sistema de gestión (de empresa.js). */
+(function pintarRoles(){
+  const N = { habilitacion: 'Habilitación del personal', inspecciones: 'Inspecciones y equipos', plan: 'Plan de acción', contratistas: 'Contratistas', dotacion: 'Entrega de dotación', induccion: 'Inducción', emergencias: 'Emergencias y simulacros', pesv: 'PESV', programas: 'Programas', quimicos: 'Sustancias químicas', peligros: 'Matriz de peligros', copasst: 'COPASST', convivencia: 'Convivencia', indicadores: 'Indicadores', auditorias: 'Auditorías', plananual: 'Plan anual', gerencia: 'Tablero de la gerencia', cierre: 'Cierre del mes', evidencias: 'Carpeta de evidencias', revision: 'Revisión por la dirección', documental: 'Documentos del SG', kit: 'Kit documental', calidad: 'Calidad', ambiental: 'Ambiental', salud: 'Salud', asesor: 'Asesor', usuarios: 'Usuarios' };
+  if (typeof Empresa === 'undefined' || !Empresa.tablaAcceso) return;
+  const t = Empresa.tablaAcceso();
+  document.querySelectorAll('#tablaRoles [data-rol]').forEach((td)=> {
+    const ms = (t[td.dataset.rol] || []).filter((m)=> Empresa.moduloActivo(m)).map((m)=> N[m] || m);
+    td.insertAdjacentHTML('afterbegin', '<b>Ve:</b> ' + esc(ms.length ? ms.join(', ') : 'solo lo de campo') + '. ');
+  });
+})();
 
 /** Clave temporal fácil de dictar (sin 0/O ni 1/l), con letras y números. */
 function temporal(){

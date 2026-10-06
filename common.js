@@ -505,7 +505,7 @@ function formatSavedAt(iso) {
  * Requiere sw.js v2 (que no hace skipWaiting automático).
  */
 /* Versión del portal (sitio). El panel del asesor la compara con la del servidor de cada cliente. */
-const VERSION_PORTAL_WEB = 'v104';
+const VERSION_PORTAL_WEB = 'v106';
 
 const UpdateManager = {
   init() {
@@ -1794,7 +1794,7 @@ const Sesion = {
       if (s && j.yo && j.yo.usuario === s.yo.usuario && JSON.stringify(j.yo) !== JSON.stringify(s.yo)) { s.yo = j.yo; localStorage.setItem(this.KEY, JSON.stringify(s)); this.pintarChip(); }
     } catch (e) {}
   },
-  salir() { try { localStorage.removeItem(this.KEY); } catch (e) {} this.pintarChip(); },
+  salir() { try { localStorage.removeItem(this.KEY); localStorage.removeItem('ssta-pendientes'); } catch (e) {} this.pintarChip(); },
   /** Usuario dentro de un token (sin validar: solo para decidir qué reenviar). */
   _carga(tok) { try { const p = String(tok || '').split('.')[1]; return JSON.parse(decodeURIComponent(escape(atob(p.replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return null; } },
   /** Para la cola: se reenvía con la sesión de ahora si es de la misma persona (o si la del
@@ -1840,7 +1840,7 @@ const Sesion = {
     const st = document.createElement('style'); st.id = 'sesionCss';
     st.textContent = '.ses-chip{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);right:10px;z-index:60;background:#151b24;color:#fff;border:0;border-radius:999px;padding:7px 12px;font:600 13px/1.2 inherit;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.25);max-width:46vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}' +
       '.ses-chip.sin{background:#c77700;}' +
-      '.ses-fondo{position:fixed;inset:0;background:rgba(10,14,20,.55);z-index:1000;display:flex;align-items:flex-end;justify-content:center;}' +
+      '.ses-fondo{position:fixed;inset:0;background:rgba(10,14,20,.55);z-index:20050;display:flex;align-items:flex-end;justify-content:center;}' +
       '.ses-caja{background:#fff;color:#151b24;width:100%;max-width:440px;border-radius:16px 16px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 24px rgba(0,0,0,.25);max-height:92vh;overflow:auto;}' +
       '@media(min-width:600px){.ses-fondo{align-items:center}.ses-caja{border-radius:16px}}' +
       '.ses-caja h3{margin:0 0 6px;font-size:18px}.ses-caja p{margin:0 0 12px;font-size:13.5px;color:#4a5361;line-height:1.4}' +
@@ -2178,3 +2178,45 @@ const Habilitacion = {
     return lista.map((p) => Object.assign({ en: new Date().toISOString() }, p));
   }
 };
+
+/* ================= SISTEMA DE GESTIÓN POR ROL (v106) =================
+   Lo de campo (permisos, ATS, charlas, preoperacionales, reportar) lo abre
+   cualquiera. Los módulos del sistema de gestión, cuando el servidor usa
+   usuarios, piden entrar y muestran solo lo que el rol permite (la tabla está
+   en empresa.js: Empresa.accesoRol). Los datos sensibles los sigue cuidando
+   el servidor (salud solo para Administrador y SST, quejas cifradas). */
+const AccesoRol = {
+  ROLES: { admin: 'Administrador', sst: 'SST', supervisor: 'Supervisor / campo', comite: 'Integrante de comité', consulta: 'Solo consulta' },
+  modulo() {
+    if (typeof Empresa === 'undefined' || !Empresa.moduloDeHref) return null;
+    return Empresa.moduloDeHref(location.pathname.split('/').pop() || 'index.html');
+  },
+  /** null = puede entrar; 'entrar' = falta su usuario; 'rol' = su rol no tiene acceso. */
+  revisar() {
+    const m = this.modulo();
+    if (!m || Empresa.esPublico(m) || typeof Sesion === 'undefined' || !Sesion.modo()) return null;
+    const yo = Sesion.yo();
+    if (!yo) return 'entrar';
+    return Empresa.accesoRol(m, yo.rol) ? null : 'rol';
+  },
+  vigilar() {
+    const r = this.revisar(); if (!r || document.getElementById('accesoRol')) return;
+    const yo = Sesion.yo(), d = document.createElement('div');
+    d.id = 'accesoRol';
+    d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true');
+    d.style.cssText = 'position:fixed;inset:0;z-index:19000;background:#f1f3f5;display:flex;align-items:center;justify-content:center;padding:16px;font-family:inherit;';
+    d.innerHTML = '<div style="background:#fff;border:1px solid #dde2e7;border-radius:16px;max-width:420px;width:100%;padding:22px 20px;color:#18232e;">' +
+      '<div style="font-size:14px;color:#55626f;">Sistema de gestión</div>' +
+      (r === 'entrar'
+        ? '<h2 style="font-size:21px;margin:4px 0 8px;">Entra con tu usuario</h2><p style="font-size:14.5px;line-height:1.45;color:#4a5566;margin:0 0 16px;">Esta parte del portal es para quienes llevan el sistema de gestión. Cada persona ve lo de su rol.</p>' +
+          '<button type="button" id="arEntrar" style="width:100%;min-height:48px;border:0;border-radius:12px;background:#18232e;color:#fff;font:inherit;font-size:16px;font-weight:600;cursor:pointer;">Entrar</button>'
+        : '<h2 style="font-size:21px;margin:4px 0 8px;">Tu usuario no tiene acceso aquí</h2><p style="font-size:14.5px;line-height:1.45;color:#4a5566;margin:0 0 16px;">Entraste como <b>' + esc(yo.nombre) + '</b> (' + esc(this.ROLES[yo.rol] || yo.rol) + '). Si necesitas este módulo, pídeselo al administrador del portal.</p>') +
+      '<a href="index.html" style="display:flex;align-items:center;justify-content:center;margin-top:8px;min-height:46px;border:1px solid #dde2e7;border-radius:12px;color:#18232e;text-decoration:none;font-weight:600;">Volver al inicio</a></div>';
+    document.body.appendChild(d);
+    const b = document.getElementById('arEntrar');
+    if (b) b.addEventListener('click', () => Sesion.pedir('Entra con tu usuario para abrir este módulo del sistema de gestión.'));
+  }
+};
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => AccesoRol.vigilar()); else AccesoRol.vigilar();
+}

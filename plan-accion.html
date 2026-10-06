@@ -42,7 +42,7 @@
   <div id="lista"><div class="empty">Cargando…</div></div>
   <button type="button" class="btn amber" id="btnNueva">+ Nueva acción</button>
   <button type="button" class="btn ghost" id="btnPdf">🖨️ PDF del plan de acción (lo que está filtrado)</button>
-  <div class="version-portal">Portal SSTA · versión v104</div>
+  <div class="version-portal">Portal SSTA · versión v106</div>
 </div>
 
 <div class="screen" id="scrDetalle">
@@ -100,6 +100,7 @@ function enlaceOrigen(ref){
   if (!ref) return '';
   if (/^REP-/.test(ref)) return 'reportes.html#' + encodeURIComponent(ref);
   if (/^INS-/.test(ref)) return 'inspecciones.html#' + encodeURIComponent(ref);
+  if (/^PRE-/.test(ref)) return 'preoperacional.html#' + encodeURIComponent(ref);
   if (/^AUD-/.test(ref)) return 'auditorias.html#' + encodeURIComponent(ref);
   if (/^PEL-/.test(ref)) return 'peligros.html#' + encodeURIComponent(ref);
   if (/^(SIM|EME)-/.test(ref)) return 'emergencias.html';

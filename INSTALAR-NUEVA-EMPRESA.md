@@ -249,6 +249,54 @@ El inicio ya no agrupa por tipo de formato sino por **cuándo se hace** en el me
 - Íconos de línea en vez de emojis y una sola letra en todo el portal (IBM Plex Sans), que va dentro del sitio: sin señal se ve igual.
 - Al buscar, solo quedan las secciones con resultados y cada una dice cuántos tiene.
 
+
+### Pendientes, cierre del mes, QR, plan automático y evidencias (v105)
+
+Para que el sistema se lleve casi solo:
+
+- **Pendientes en el inicio.** Lo vencido y lo que vence en 15 días, de todos los módulos, más lo del mes: actividades del plan anual sin hacer, inspecciones del cronograma, reunión del COPASST, datos de indicadores y cierre del mes. Con usuarios, «Míos» muestra lo que tiene el nombre de la persona como responsable; los exámenes médicos solo los ven Administrador y SST. Sin señal se ve la última lista.
+- **Correo del lunes.** A cada usuario con correo (activo y con su clave ya cambiada) le llega lo suyo de la semana; Administrador, SST y `CORREOS_AVISO` reciben todo. El correo diario de las 6 a. m. sigue igual.
+  - En un servidor que viene de una versión anterior, el resumen del lunes se programa solo con el primer aviso diario. Para hacerlo de una vez: ▶ `sgsst__instalarAvisosDiarios`.
+  - Para que algo le llegue a alguien, su nombre debe estar igual (o con sus dos apellidos o nombres completos) en el responsable de la acción o de la actividad del plan.
+- **Cerrar el mes** (`cierre-mes.html`). Lista de cierre automática (indicadores, accidentes, inspecciones programadas, COPASST, plan anual, acciones, personal habilitado), cifras del mes, informe mensual en PDF y la foto del cierre guardada (hoja «Cierres de mes»). El mes sin cerrar aparece en pendientes: por hacer hasta el día 10 del mes siguiente, después vencido.
+- **Etiquetas QR.** En Inspecciones: una etiqueta por equipo o la hoja de todo el inventario (12 por hoja carta). Al escanearla se abre la inspección de ese equipo; en el sitio de tu marca la etiqueta lleva el código de la empresa.
+- **Plan anual según la empresa.** Propone las actividades con los estándares que le aplican (7, 21 o 60), los trabajadores (COPASST o vigía), los peligros de la matriz (alturas, confinados, eléctrico, caliente, izaje, químico, biomecánico, psicosocial, físico), los químicos, los vehículos y los contratistas. Cada una dice por qué. Con un plan ya hecho, sugiere solo lo que falta.
+- **Carpeta de evidencias** (`evidencias.html`). Cada estándar mínimo que le aplica con la evidencia del portal: al día, incompleto, falta o revisar a mano. Índice en PDF para el auditor y «Llevar a una autoevaluación», que crea la autoevaluación con la evidencia escrita y «cumple» sugerido (quien audita confirma). El porcentaje es una guía, no la calificación oficial.
+
+
+### Preoperacionales dentro del portal (v106): trae tus formularios de Google
+
+Los preoperacionales que la empresa tenía en Google Forms se montan **tal cual** en el portal (`preoperacional.html`): mismas páginas, preguntas, opciones, obligatorias y saltos de sección. Ganan lo del portal: funcionan sin señal, quedan en el SG-SST (hoja «Preoperacionales»), piden qué se encontró y foto cuando algo está «Malo», crean la acción en el plan de acción, PDF de cada uno y las respuestas en CSV para Excel (como la hoja de respuestas de Google).
+
+1. **Exportar** (en la cuenta de Google dueña de los formularios): https://script.google.com → Nuevo proyecto → pega `herramientas/exportar-formularios.gs` → ejecuta `exportarFormularios`. Deja `formularios-portal.json` en el Drive.
+2. **Importar** (en tu computador, con el repositorio):
+   - INDIMON: `node herramientas/importar-formularios.js formularios-portal.json` (usa los 22 enlaces que tenía el inicio).
+   - Otra empresa: `node herramientas/importar-formularios.js formularios-portal.json --todos` (monta todos sus formularios; el grupo sale de «Grupo: …» en la descripción del formulario).
+   - Se genera `preop-formularios.js`. Súbelo al sitio y vuelve a generar el inicio.
+3. **Cambios a propósito:** la lista desplegable «NOMBRE - CÉDULA» no se copia al código (el sitio es público): la persona se elige del Personal habilitado. En otra empresa, los centros de trabajo salen de `empresa.js` y no se muestran los códigos de INDIMON.
+- Quien usa el equipo puede llenarlo sin usuario (como en Google), pero no cambiarlo después. El de **condiciones de salud** queda aparte (`preopsalud`) y solo lo ven Administrador y SST.
+
+### Campo a la vista, «Sistema de gestión» por rol (v106)
+
+El inicio quedó en dos partes:
+
+- **En cada jornada** (y la biblioteca): permisos de trabajo, ATS, charlas, preoperacionales, inspección de EPP, personal habilitado, tablero de permisos y «Reportar un evento». Lo abre **cualquiera, sin usuario**, como el portal de INDIMON.
+- **Sistema de gestión**: cronograma del mes, pendientes y los pasos 1 a 5 (planear, ejecutar, comités, cerrar el mes, mejorar, administrar). Con usuarios activos pide **entrar**, y cada rol ve solo sus módulos. Si alguien abre la página de un módulo directo (enlace, favorito), la página misma pide entrar o dice «Tu usuario no tiene acceso aquí».
+
+| Rol | Ve en el sistema de gestión (de fábrica) |
+|---|---|
+| Administrador, SST | Todo (SST incluye salud; Administrador además usuarios y respaldo) |
+| Supervisor / campo | Habilitación, inspecciones y equipos, plan de acción, contratistas, dotación, inducción, emergencias, PESV, programas, químicos, matriz de peligros |
+| Integrante de comité | COPASST, Convivencia, inspecciones, plan de acción, indicadores, matriz de peligros, auditorías, plan anual, habilitación |
+| Solo consulta | Tablero de gerencia, indicadores, plan de acción, plan anual, cierre del mes, evidencias, auditorías, revisión por la dirección, documentos, kit, matriz de peligros, habilitación, calidad, ambiental, COPASST |
+
+**Cambiar la tabla de una empresa:** en `empresa.js` (o `empresas/<código>.json`), `acceso`, solo para los roles que cambian. Ejemplo: `acceso: { supervisor: ['inspecciones', 'plan', 'emergencias', 'gerencia'] }`. Los nombres de módulo son los de `modulos`. Lo de campo no se puede quitar de lo público.
+
+**Importante:**
+- El bloqueo por rol funciona cuando la empresa **activa los usuarios** (Usuarios y respaldo). Sin usuarios, el sistema de gestión se abre con «Abrir el sistema de gestión» y avisa que cualquiera con el enlace puede verlo.
+- La página oculta lo que el rol no ve; lo que el servidor protege de verdad sigue igual: datos de salud solo Administrador y SST, quejas de convivencia cifradas, y solo escriben los roles con permiso (Solo consulta no cambia nada).
+- Los pendientes del inicio solo muestran lo de los módulos del rol; el correo del lunes le llega a cada quien con lo que tiene su nombre (Administrador y SST, todo).
+
 ## Vender el portal a varias empresas (sitio multiempresa, v99)
 
 En vez de un sitio por empresa, **tú publicas UN sitio con tu marca** y cada empresa entra con su código. Así una actualización del sitio les llega a todas a la vez, y los servidores se actualizan con un solo comando.
