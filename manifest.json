@@ -1,13 +1,13 @@
 {
-  "name": "Portal SSTA — Demo",
-  "short_name": "SSTA Demo",
+  "name": "Portal SSTA — CARLOS RIOS",
+  "short_name": "SSTA CARLOS RIOS",
   "description": "Permisos de trabajo: alturas, caliente, espacios confinados, izajes y eléctrico.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#eef1f4",
-  "theme_color": "#F2C200",
+  "theme_color": "#0cd3ed",
   "lang": "es-CO",
   "dir": "ltr",
   "icons": [
