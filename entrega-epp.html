@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#151b24">
+<title>Matriz y entrega de EPP · Portal SSTA</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="sgsst.css">
+<style>
+.el{border-bottom:1px dashed #e6eaee;padding:8px 0;display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start;}
+.el input[type=checkbox]{width:22px;height:22px;margin-top:2px;}
+.el .det{display:grid;grid-template-columns:70px 1fr;gap:6px;grid-column:2;}
+.el .det input{border:1.5px solid var(--line);border-radius:9px;padding:8px;font-size:14px;font-family:inherit;width:100%;box-sizing:border-box;}
+.el b{font-size:13.5px;} .el small{display:block;color:var(--muted);font-size:11.5px;}
+.mfila{display:grid;grid-template-columns:1fr 1fr 70px 34px;gap:6px;margin-bottom:6px;}
+.mfila input,.mfila select{border:1.5px solid var(--line);border-radius:9px;padding:8px;font-size:13.5px;font-family:inherit;width:100%;box-sizing:border-box;min-width:0;}
+.mfila button{border:0;background:#eef1f5;border-radius:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="screen active" id="scrLista">
+  <div class="hdr">
+    <a class="back" href="index.html">← Volver al portal</a>
+    <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><div class="eyebrow">Gestión SST</div>
+    <h1>Matriz y entrega de EPP</h1>
+    <p>Qué lleva cada cargo, entregas con firma y reposición a tiempo</p></div></div>
+  </div>
+  <div id="avisoSrv"></div><div id="avisoCopia"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="tabs" id="tabs">
+    <button type="button" class="on" data-tab="entregas">Entregas <span class="n" id="nEnt">0</span></button>
+    <button type="button" data-tab="reponer">Por reponer <span class="n" id="nRep">0</span></button>
+    <button type="button" data-tab="matriz">Matriz por cargo <span class="n" id="nMat">0</span></button>
+  </div>
+  <div id="panel"><div class="empty">Cargando…</div></div>
+  <div class="version-portal">Portal SSTA · versión v103</div>
+</div>
+<div class="screen" id="scrEnt"></div>
+</div>
+<script src="empresa.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="sgsst-ui.js"></script>
+<script src="registros.js"></script>
+<script>
+OfflineBanner.init();
+OutboxBadge.init();
+if (typeof Outbox !== 'undefined') Outbox.flush();
+if (typeof UpdateManager !== 'undefined') UpdateManager.init();
+
+const $ = UI.$;
+/* Catálogo de partida (vida útil de REFERENCIA en meses: ajústala a la ficha del fabricante y al uso real). */
+const CATALOGO = [
+  ['Casco de seguridad con barbuquejo', 'ANSI Z89.1 / NTC 1523', 36], ['Gafas de seguridad', 'ANSI Z87.1', 6], ['Careta para esmerilar', 'ANSI Z87.1', 12],
+  ['Protector auditivo de inserción', 'ANSI S3.19', 1], ['Protector auditivo tipo copa', 'ANSI S3.19', 12], ['Respirador media cara', 'NIOSH 42 CFR 84', 12],
+  ['Filtros / cartuchos del respirador', 'Según el contaminante', 1], ['Guantes de vaqueta', 'EN 388', 1], ['Guantes de nitrilo', 'EN 374', 1], ['Guantes dieléctricos', 'ASTM D120 (clase según tensión)', 6],
+  ['Botas de seguridad con puntera', 'ASTM F2413', 6], ['Botas dieléctricas', 'ASTM F2413 EH', 6], ['Overol / ropa de trabajo', 'Dotación', 4], ['Chaleco reflectivo', 'ANSI 107', 6],
+  ['Careta y guantes de soldador', 'ANSI Z87.1 / EN 12477', 6], ['Peto o chaqueta de cuero', 'Soldadura', 12], ['Arnés de cuerpo completo', 'ANSI Z359.11 / Res. 4272', 60], ['Eslinga con absorbedor de choque', 'ANSI Z359.13', 60]];
+const MOTIVOS = ['Ingreso', 'Reposición por desgaste', 'Reposición por daño', 'Pérdida', 'Dotación periódica', 'Cambio de cargo', 'Temporal / visitante'];
+let rows = [], tab = 'entregas';
+const de = (t)=> rows.filter((x)=> x.tipo === t);
+const limpiar = (t)=> String(t || '').replace(/[;|]/g, ' ').trim();
+function show(id){ document.querySelectorAll('.screen').forEach((s)=>s.classList.toggle('active', s.id === id)); window.scrollTo(0, 0); }
+async function cargar(){
+  if (UI.avisoServidor($('avisoSrv'))) { $('panel').innerHTML = ''; return; }
+  const r = await SGSST.listar('entrega,eppcargo,trabajador,cargo');
+  UI.avisoCopia($('avisoCopia'), r);
+  rows = r.rows; pintar();
+}
+/** Lo último entregado de cada elemento a cada persona, con su vencimiento. */
+function porReponer(){
+  const m = {};
+  de('entrega').forEach((x)=> String(x.resumen.vencimientos || '').split(/\s*;\s*/).forEach((v)=> {
+    const p = v.split('|'); if (p.length < 2 || !p[1]) return;
+    const k = (Habilitacion.clave(x.resumen.cedula) || x.resumen.nombre) + '|' + p[0].toLowerCase();
+    if (!m[k] || String(x.fecha) > String(m[k].fecha)) m[k] = { nombre: x.resumen.nombre, cedula: x.resumen.cedula, cargo: x.resumen.cargo, elemento: p[0], vence: p[1], fecha: x.fecha, id: x.id };
+  }));
+  return Object.keys(m).map((k)=> m[k]).sort((a, b)=> a.vence.localeCompare(b.vence));
+}
+function pintar(){
+  const h = UI.hoy(), en30 = Festivos.sumarDias(h, 30), rep = porReponer(), venc = rep.filter((x)=> x.vence < h), pronto = rep.filter((x)=> x.vence >= h && x.vence <= en30);
+  const activos = de('trabajador').filter((x)=> x.resumen.activo !== false), conEnt = new Set(de('entrega').map((x)=> Habilitacion.clave(x.resumen.cedula)));
+  const sinEnt = activos.filter((x)=> !conEnt.has(Habilitacion.clave(x.resumen.cedula)));
+  const cargos = new Set(activos.map((x)=> UI.norm(x.resumen.cargo)).filter(Boolean)), conMat = new Set(de('eppcargo').map((x)=> UI.norm(x.resumen.cargo)));
+  const sinMat = [...cargos].filter((c)=> !conMat.has(c));
+  $('nEnt').textContent = de('entrega').length; $('nRep').textContent = venc.length + pronto.length; $('nMat').textContent = de('eppcargo').length;
+  $('kpis').innerHTML = '<div class="kpi ' + (venc.length ? 'mal' : 'ok') + '"><div class="v">' + venc.length + '</div><div class="n">elementos con reposición vencida</div>' + (pronto.length ? '<div class="f">' + pronto.length + ' vencen en 30 días</div>' : '') + '</div>' +
+    '<div class="kpi ' + (sinEnt.length ? 'mal' : 'ok') + '"><div class="v">' + sinEnt.length + '</div><div class="n">personas activas sin entrega registrada</div></div>' +
+    '<div class="kpi ' + (sinMat.length ? 'pronto' : 'ok') + '"><div class="v">' + (cargos.size - sinMat.length) + ' / ' + cargos.size + '</div><div class="n">cargos con matriz de EPP</div></div>';
+  ({ entregas: pintarEntregas, reponer: pintarReponer, matriz: pintarMatriz })[tab]($('panel'));
+}
+function item(x, titulo, sub, chip, clase, data){ return '<button type="button" class="item ' + (clase || '') + '" data-' + (data || 'id') + '="' + esc(x.id) + '"><div class="fila"><div><div class="t">' + titulo + '</div>' + (sub || []).filter(Boolean).map((s)=> '<div class="m">' + s + '</div>').join('') + (x.pendiente ? '<div class="m"><span class="pend">⏳ pendiente de enviar</span></div>' : '') + '</div>' + (chip ? '<span class="chip ' + (clase || '') + '">' + chip + '</span>' : '') + '</div></button>'; }
+
+/* ── Entregas ── */
+function pintarEntregas(panel){
+  const l = de('entrega').sort((a, b)=> String(b.fecha).localeCompare(String(a.fecha)));
+  panel.innerHTML = '<input type="search" class="buscar" id="bEnt" placeholder="Buscar por nombre o cédula"><div id="lEnt"></div>' +
+    '<button type="button" class="btn amber" id="nuevaEnt">+ Registrar entrega</button><button type="button" class="btn ghost" id="pdfPersona">🖨️ Historial de EPP de una persona (PDF)</button>';
+  const lista = ()=> { const q = UI.norm($('bEnt').value).trim();
+    $('lEnt').innerHTML = l.filter((x)=> !q || UI.norm(x.resumen.nombre + ' ' + x.resumen.cedula).includes(q)).map((x)=> item(x, esc(x.resumen.nombre) + ' · ' + esc(UI.corta(x.fecha)),
+      [esc(x.resumen.elementosTexto || ''), esc(x.resumen.cargo || '') + (x.resumen.entrego ? ' · entregó ' + esc(x.resumen.entrego) : '') + (x.resumen.capacitado === false ? ' · <b style="color:var(--mal);">sin capacitación en uso</b>' : '')], esc(x.estado || ''), '')).join('') || '<div class="empty">Sin entregas registradas.</div>';
+    $('lEnt').querySelectorAll('[data-id]').forEach((b)=> b.addEventListener('click', ()=> verEntrega(b.dataset.id))); };
+  $('bEnt').addEventListener('input', lista); lista();
+  $('nuevaEnt').addEventListener('click', ()=> nuevaEntrega({}));
+  $('pdfPersona').addEventListener('click', pdfPersona);
+}
+function pintarReponer(panel){
+  const h = UI.hoy(), l = porReponer().filter((x)=> x.vence <= Festivos.sumarDias(h, 60));
+  panel.innerHTML = '<p class="ayuda">Lo último que se le entregó de cada elemento a cada persona, según la vida útil de la matriz. Toca para registrar la reposición.</p>' +
+    (l.length ? l.map((x, i)=> { const c = x.vence < h ? 'mal' : 'pronto';
+      return '<button type="button" class="item ' + c + '" data-r="' + i + '"><div class="fila"><div><div class="t">' + esc(x.elemento) + ' · ' + esc(x.nombre) + '</div><div class="m">Entregado el ' + esc(UI.corta(x.fecha)) + ' · ' + (x.vence < h ? 'venció' : 'vence') + ' el ' + esc(UI.corta(x.vence)) + ' (' + esc(UI.cuandoTexto(x.vence)) + ')</div></div><span class="chip ' + c + '">' + (c === 'mal' ? 'Vencido' : 'Por vencer') + '</span></div></button>'; }).join('')
+      : '<div class="empty">Nada por reponer en los próximos 60 días.</div>');
+  panel.querySelectorAll('[data-r]').forEach((b)=> b.addEventListener('click', ()=> { const x = l[+b.dataset.r]; nuevaEntrega({ nombre: x.nombre, cedula: x.cedula, cargo: x.cargo, motivo: 'Reposición por desgaste', solo: [x.elemento] }); }));
+}
+
+/* ── Matriz de EPP por cargo ── */
+function pintarMatriz(panel){
+  const l = de('eppcargo').sort((a, b)=> String(a.resumen.cargo).localeCompare(String(b.resumen.cargo)));
+  const activos = de('trabajador').filter((x)=> x.resumen.activo !== false), cargos = [...new Set(activos.map((x)=> x.resumen.cargo).filter(Boolean))], conMat = new Set(l.map((x)=> UI.norm(x.resumen.cargo)));
+  const faltan = cargos.filter((c)=> !conMat.has(UI.norm(c)));
+  panel.innerHTML = '<p class="ayuda">EPP de cada cargo según sus peligros (matriz de peligros) y la vida útil para reponerlo. Es la base para entregar.</p>' +
+    (faltan.length ? '<div class="aviso amar">Cargos sin matriz: ' + esc(faltan.join(', ')) + '</div>' : '') +
+    (l.length ? l.map((x)=> item(x, esc(x.resumen.cargo), [esc(x.resumen.elementosTexto || '')], (Number(x.resumen.elementos) || 0) + ' elemento(s)')).join('') : '<div class="empty">Sin matriz de EPP.</div>') +
+    '<button type="button" class="btn amber" id="nuevoCargo">+ Cargo</button><button type="button" class="btn ghost" id="pdfMatriz">🖨️ Matriz de EPP (PDF)</button>';
+  panel.querySelectorAll('[data-id]').forEach((b)=> b.addEventListener('click', async ()=> { const d = await Registros.abrir(b.dataset.id); if (d) editarCargo(d); }));
+  $('nuevoCargo').addEventListener('click', ()=> editarCargo({ id: SGSST.nuevoId('EPC'), nuevo: true, cargo: faltan[0] || '', elementos: [] }));
+  $('pdfMatriz').addEventListener('click', pdfMatriz);
+}
+function editarCargo(d){
+  let els = (d.elementos || []).map((e)=> Object.assign({}, e));
+  const filas = ()=> els.map((e, i)=> '<div class="mfila" data-i="' + i + '"><input list="dlCat" data-k="elemento" value="' + esc(e.elemento) + '" placeholder="Elemento"><input data-k="norma" value="' + esc(e.norma || '') + '" placeholder="Norma / especificación">' +
+    '<input type="number" min="0" data-k="vidaUtil" value="' + esc(e.vidaUtil || '') + '" placeholder="Meses" aria-label="Vida útil en meses"><button type="button" data-q="' + i + '" aria-label="Quitar">✕</button></div>').join('');
+  const m = UI.modal('<h3>' + (d.nuevo ? 'Nuevo: ' : '') + 'EPP del cargo</h3>' +
+    '<div class="grid2"><div class="field"><label>Cargo *</label><input type="text" id="mcCargo" list="dlCargos" value="' + esc(d.cargo || '') + '"></div><div class="field"><label>Área</label><input type="text" id="mcArea" value="' + esc(d.area || '') + '"></div></div>' +
+    '<div class="field"><label>Peligros del cargo (de la matriz de peligros)</label><textarea id="mcPel">' + esc(d.peligros || '') + '</textarea></div>' +
+    '<label>Elementos · norma · vida útil (meses)</label><div id="mcEls"></div><button type="button" class="btn ghost mini" id="mcAdd">+ Elemento</button>' +
+    '<datalist id="dlCat">' + CATALOGO.map((c)=> '<option value="' + esc(c[0]) + '">').join('') + '</datalist>' +
+    '<datalist id="dlCargos">' + [...new Set(de('trabajador').map((x)=> x.resumen.cargo).concat(de('cargo').map((x)=> x.resumen.nombre)).filter(Boolean))].map((c)=> '<option value="' + esc(c) + '">').join('') + '</datalist>' +
+    '<p class="ayuda">La vida útil del catálogo es una referencia: ajústala a la ficha técnica del fabricante y al desgaste real en la obra.</p>' +
+    '<div data-adj></div><button type="button" class="btn amber" id="mcOk">Guardar</button>' + (d.nuevo ? '' : '<button type="button" class="btn ghost" id="mcBorrar" style="color:var(--mal);">Borrar</button>') +
+    '<button type="button" class="btn ghost" data-cerrar>Cancelar</button><div class="status-msg" id="mcMsg"></div>', true);
+  const leer = ()=> { els = [...m.el.querySelectorAll('.mfila')].map((f)=> ({ elemento: limpiar(f.querySelector('[data-k=elemento]').value), norma: f.querySelector('[data-k=norma]').value.trim(), vidaUtil: Number(f.querySelector('[data-k=vidaUtil]').value) || 0 })); };
+  const pintarEls = ()=> {
+    m.el.querySelector('#mcEls').innerHTML = filas() || '<div class="ayuda">Sin elementos.</div>';
+    m.el.querySelectorAll('[data-q]').forEach((b)=> b.addEventListener('click', ()=> { leer(); els.splice(+b.dataset.q, 1); pintarEls(); }));
+    m.el.querySelectorAll('[data-k=elemento]').forEach((inp)=> inp.addEventListener('change', ()=> { const c = CATALOGO.find((x)=> x[0] === inp.value), f = inp.closest('.mfila');
+      if (c) { if (!f.querySelector('[data-k=norma]').value) f.querySelector('[data-k=norma]').value = c[1]; if (!f.querySelector('[data-k=vidaUtil]').value) f.querySelector('[data-k=vidaUtil]').value = c[2]; } }));
+  };
+  pintarEls();
+  m.el.querySelector('#mcAdd').addEventListener('click', ()=> { leer(); els.push({ elemento: '', norma: '', vidaUtil: '' }); pintarEls(); });
+  if (!d.nuevo) { UI.adjuntos(m.el.querySelector('[data-adj]'), { id: d.id, lista: d.adjuntos || [], titulo: 'Fichas técnicas' }); m.el.querySelector('[data-cerrar]').insertAdjacentElement('beforebegin', UI.botonHistorial(d.id, 'EPP de ' + d.cargo)); }
+  if (m.el.querySelector('#mcBorrar')) m.el.querySelector('#mcBorrar').addEventListener('click', async ()=> { if (!confirm('¿Borrar la matriz de este cargo?')) return; if (await Registros.borrar(d.id, 'Borrado desde EPP')) { m.cerrar(); cargar(); } });
+  m.el.querySelector('#mcOk').addEventListener('click', async ()=> {
+    leer(); els = els.filter((e)=> e.elemento);
+    const cargo = m.el.querySelector('#mcCargo').value.trim(), msg = m.el.querySelector('#mcMsg');
+    if (!cargo || !els.length) { msg.textContent = 'Escribe el cargo y al menos un elemento.'; return; }
+    if (d.nuevo && de('eppcargo').some((x)=> UI.norm(x.resumen.cargo) === UI.norm(cargo))) { msg.textContent = 'Ese cargo ya tiene matriz: ábrelo en la lista.'; return; }
+    msg.textContent = 'Guardando…';
+    const v = Object.assign({}, d, { cargo, area: m.el.querySelector('#mcArea').value.trim(), peligros: m.el.querySelector('#mcPel').value.trim(), elementos: els,
+      elementosTexto: els.map((e)=> e.elemento + (e.vidaUtil ? ' (' + e.vidaUtil + ' m)' : '')).join(', '), fechaRevision: UI.hoy() });
+    const r = await Registros.guardar('eppcargo', d.id, v, d.nuevo ? 0 : d.version);
+    if (typeof r === 'string') { msg.textContent = r; return; }
+    m.cerrar(); cargar();
+  });
+}
+function matrizDe(cargo){ const x = de('eppcargo').find((m)=> UI.norm(m.resumen.cargo) === UI.norm(cargo)); return x ? x.id : null; }
+
+/* ── Registrar una entrega ── */
+async function nuevaEntrega(pre){
+  const s = $('scrEnt');
+  s.innerHTML = '<div class="hdr"><a class="back" href="#" data-volver>← Volver</a><div class="eyebrow">Entrega de EPP</div><h1>Registrar entrega</h1><p>Con la firma de quien recibe</p></div>' +
+    '<div class="card"><div class="field"><label>Trabajador *</label><input type="text" id="eNom" value="' + esc(pre.nombre || '') + '" placeholder="Escribe para buscar"></div>' +
+    '<div class="grid2"><div class="field"><label>Cédula *</label><input type="text" id="eCed" inputmode="numeric" value="' + esc(pre.cedula || '') + '"></div><div class="field"><label>Cargo</label><input type="text" id="eCargo" value="' + esc(pre.cargo || '') + '"></div></div>' +
+    '<div class="grid2"><div class="field"><label>Fecha</label><input type="date" id="eFecha" value="' + UI.hoy() + '"></div><div class="field"><label>Motivo</label><select id="eMot">' + MOTIVOS.map((x)=> '<option' + (x === pre.motivo ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select></div></div></div>' +
+    '<div class="card"><h2>Elementos</h2><div id="eEls"></div><div class="field" style="margin-top:8px;"><label>Otro elemento (fuera de la matriz)</label><input type="text" id="eOtro" list="dlCat2" placeholder="Escribe y toca Agregar"></div><button type="button" class="btn ghost mini" id="eAdd">Agregar</button>' +
+    '<datalist id="dlCat2">' + CATALOGO.map((c)=> '<option value="' + esc(c[0]) + '">').join('') + '</datalist></div>' +
+    '<div class="card"><label class="check"><input type="checkbox" id="eCap" checked> Se le explicó el uso, cuidado, limitaciones y cuándo pedir reposición</label>' +
+    '<div class="field"><label>Observaciones</label><textarea id="eObs"></textarea></div>' +
+    '<div class="field"><label>Firma de quien recibe *</label>' + UI.padHTML('fRec') + '</div>' +
+    '<div class="field"><label>Entregó</label><input type="text" id="eEntrego" value="' + esc(quienSoy()) + '"></div>' +
+    '<button type="button" class="btn amber" id="eOk">Guardar entrega</button><div class="status-msg" id="eMsg"></div></div>';
+  show('scrEnt');
+  UI.activarPad('fRec');
+  let els = [];
+  const pintarEls = ()=> { $('eEls').innerHTML = els.length ? els.map((e, i)=> '<label class="el"><input type="checkbox" data-i="' + i + '"' + (e.va ? ' checked' : '') + '><div><b>' + esc(e.elemento) + '</b><small>' + esc([e.norma, e.vidaUtil ? 'vida útil ' + e.vidaUtil + ' meses' : ''].filter(Boolean).join(' · ')) + '</small></div>' +
+      '<div class="det"><input type="number" min="1" data-c="' + i + '" value="' + esc(e.cantidad || 1) + '" aria-label="Cantidad"><input data-t="' + i + '" value="' + esc(e.talla || '') + '" placeholder="Talla / referencia"></div></label>').join('') : '<div class="ayuda">Escribe el cargo: se traen los elementos de su matriz. O agrega uno abajo.</div>';
+    $('eEls').querySelectorAll('[data-i]').forEach((x)=> x.addEventListener('change', ()=> { els[+x.dataset.i].va = x.checked; }));
+    $('eEls').querySelectorAll('[data-c]').forEach((x)=> x.addEventListener('input', ()=> { els[+x.dataset.c].cantidad = Number(x.value) || 1; }));
+    $('eEls').querySelectorAll('[data-t]').forEach((x)=> x.addEventListener('input', ()=> { els[+x.dataset.t].talla = x.value; })); };
+  const desdeMatriz = async ()=> {
+    const id = matrizDe($('eCargo').value); if (!id) { pintarEls(); return; }
+    const d = await SGSST.doc(id);
+    const ya = new Set(els.map((e)=> UI.norm(e.elemento)));
+    ((d && d.elementos) || []).forEach((e)=> { if (!ya.has(UI.norm(e.elemento))) els.push(Object.assign({}, e, { cantidad: 1, va: !pre.solo || pre.solo.some((s)=> UI.norm(s) === UI.norm(e.elemento)) })); });
+    pintarEls();
+  };
+  if (pre.solo) pre.solo.forEach((x)=> { const c = CATALOGO.find((k)=> k[0] === x); els.push({ elemento: x, norma: c ? c[1] : '', vidaUtil: c ? c[2] : 0, cantidad: 1, va: true }); });
+  UI.autocompletar($('eNom'), (p)=> { $('eNom').value = p.nombre; $('eCed').value = p.cedula || ''; $('eCargo').value = p.cargo || ''; desdeMatriz(); });
+  $('eCargo').addEventListener('change', desdeMatriz);
+  $('eAdd').addEventListener('click', ()=> { const n = limpiar($('eOtro').value); if (!n) return; const c = CATALOGO.find((k)=> k[0] === n); els.push({ elemento: n, norma: c ? c[1] : '', vidaUtil: c ? c[2] : 0, cantidad: 1, va: true }); $('eOtro').value = ''; pintarEls(); });
+  await desdeMatriz();
+  $('eOk').addEventListener('click', async ()=> {
+    const msg = $('eMsg'), van = els.filter((e)=> e.va), f = $('eFecha').value;
+    if (!$('eNom').value.trim() || !Habilitacion.clave($('eCed').value)) { msg.textContent = 'Faltan el trabajador y la cédula.'; return; }
+    if (!van.length) { msg.textContent = 'Marca al menos un elemento.'; return; }
+    const firma = UI.firma('fRec'); if (!firma) { msg.textContent = 'Falta la firma de quien recibe.'; return; }
+    const elementos = van.map((e)=> ({ elemento: limpiar(e.elemento), norma: e.norma || '', cantidad: e.cantidad || 1, talla: e.talla || '', vidaUtil: Number(e.vidaUtil) || 0,
+      vence: Number(e.vidaUtil) ? Festivos.sumarMeses(f, Number(e.vidaUtil)) : '' }));
+    const vences = elementos.filter((e)=> e.vence).map((e)=> e.vence).sort();
+    const doc = { nombre: $('eNom').value.trim(), cedula: $('eCed').value.trim(), cargo: $('eCargo').value.trim(), fecha: f, motivo: $('eMot').value, elementos,
+      elementosTexto: elementos.map((e)=> (e.cantidad > 1 ? e.cantidad + ' × ' : '') + e.elemento).join(', '), vencimientos: elementos.filter((e)=> e.vence).map((e)=> e.elemento + '|' + e.vence).join('; '),
+      reponer: vences[0] || '', capacitado: $('eCap').checked, observaciones: $('eObs').value.trim(), firma, entrego: $('eEntrego').value.trim() };
+    $('eOk').disabled = true; msg.textContent = 'Guardando…';
+    const r = await Registros.guardar('entrega', SGSST.nuevoId('ENT'), doc, 0);
+    $('eOk').disabled = false;
+    if (typeof r === 'string') { msg.textContent = r; return; }
+    UI.toast(r.enCola ? '⏳ Entrega guardada en el equipo; se envía al volver la señal.' : '✓ Entrega registrada.');
+    show('scrLista'); cargar();
+  });
+}
+function quienSoy(){ try { return Sesion.nombre() || localStorage.getItem('ssta-reporta') || ''; } catch (e) { return ''; } }
+async function verEntrega(id){
+  const d = await Registros.abrir(id); if (!d) return;
+  const s = $('scrEnt');
+  s.innerHTML = '<div class="hdr"><a class="back" href="#" data-volver>← Volver</a><div class="eyebrow">' + esc(d.id) + '</div><h1>' + esc(d.nombre) + '</h1><p>' + esc(UI.corta(d.fecha)) + ' · ' + esc(d.motivo) + '</p></div>' +
+    '<div class="card"><table class="tabla"><tr><th>Elemento</th><th>Cant.</th><th>Talla</th><th>Reponer</th></tr>' + (d.elementos || []).map((e)=> '<tr><td>' + esc(e.elemento) + '<br><small>' + esc(e.norma || '') + '</small></td><td>' + esc(e.cantidad) + '</td><td>' + esc(e.talla || '') + '</td><td>' + esc(UI.corta(e.vence)) + '</td></tr>').join('') + '</table>' +
+    '<div class="m">' + (d.capacitado ? '✓ Se le explicó el uso y cuidado.' : '⚠ Sin capacitación en el uso registrada.') + (d.entrego ? ' · Entregó: ' + esc(d.entrego) : '') + '</div>' + (d.observaciones ? '<div class="texto-largo" style="margin-top:8px;">' + esc(d.observaciones) + '</div>' : '') +
+    (UI.src(d.firma) ? '<div style="margin-top:8px;"><img src="' + UI.src(d.firma) + '" alt="Firma" style="max-height:70px;"></div>' : '') + '</div>' +
+    '<button type="button" class="btn ghost" id="vPdf">🖨️ Registro de entrega (PDF)</button><div class="card"><div id="vAdj"></div><div id="vHist"></div></div>';
+  UI.adjuntos($('vAdj'), { id: d.id, lista: d.adjuntos || [], titulo: 'Soportes' });
+  $('vHist').appendChild(UI.botonHistorial(d.id, 'Entrega a ' + d.nombre));
+  $('vPdf').addEventListener('click', ()=> pdfEntregas([d], d.nombre));
+  show('scrEnt');
+}
+function pdfEntregas(lista, quien){
+  const filas = lista.map((d)=> (d.elementos || []).map((e, i)=> '<tr>' + (i ? '' : '<td rowspan="' + d.elementos.length + '">' + esc(UI.corta(d.fecha)) + '<br>' + esc(d.motivo) + '</td>') + '<td>' + esc(e.elemento) + (e.norma ? '<br><small>' + esc(e.norma) + '</small>' : '') + '</td><td>' + esc(e.cantidad) + '</td><td>' + esc(e.talla || '') + '</td><td>' + esc(UI.corta(e.vence)) + '</td>' +
+    (i ? '' : '<td rowspan="' + d.elementos.length + '">' + (d.capacitado ? 'Sí' : 'No') + '</td><td rowspan="' + d.elementos.length + '">' + UI.firmaHoja(d.firma) + '</td><td rowspan="' + d.elementos.length + '">' + esc(d.entrego || '') + '</td>') + '</tr>').join('')).join('');
+  const d0 = lista[0] || {};
+  UI.imprimir([UI.cabecera('SG-ENTREGA-EPP', 'REGISTRO DE ENTREGA DE ELEMENTOS DE PROTECCIÓN PERSONAL', quien) +
+    UI.seccion('TRABAJADOR', UI.tablaDatos([['Nombre', d0.nombre || ''], ['Cédula', d0.cedula || ''], ['Cargo', d0.cargo || ''], ['Entregas', String(lista.length)]])) +
+    UI.seccion('ELEMENTOS ENTREGADOS', '<table><tr><td class="l">Fecha / motivo</td><td class="l">Elemento</td><td class="l">Cant.</td><td class="l">Talla</td><td class="l">Reponer</td><td class="l">Capacitado en su uso</td><td class="l">Firma de quien recibe</td><td class="l">Entregó</td></tr>' + filas + '</table>') +
+    '<table><tr><td style="font-size:9px;">El trabajador se compromete a usar, cuidar y conservar los elementos recibidos, y a pedir su reposición cuando se dañen o cumplan su vida útil.</td></tr></table>'], true);
+}
+async function pdfPersona(){
+  const q = prompt('Cédula de la persona:'); if (!q) return;
+  const ids = de('entrega').filter((x)=> Habilitacion.clave(x.resumen.cedula) === Habilitacion.clave(q)).sort((a, b)=> String(a.fecha).localeCompare(String(b.fecha))).map((x)=> x.id);
+  if (!ids.length) { UI.toast('No hay entregas para esa cédula.', 'mal'); return; }
+  UI.toast('Preparando…');
+  const docs = (await Promise.all(ids.map((id)=> SGSST.doc(id)))).filter(Boolean);
+  pdfEntregas(docs, docs[0].nombre);
+}
+async function pdfMatriz(){
+  const docs = (await Promise.all(de('eppcargo').map((x)=> SGSST.doc(x.id)))).filter(Boolean).sort((a, b)=> String(a.cargo).localeCompare(String(b.cargo)));
+  UI.imprimir([UI.cabecera('SG-MATRIZ-EPP', 'MATRIZ DE ELEMENTOS DE PROTECCIÓN PERSONAL POR CARGO', 'Corte ' + UI.corta(UI.hoy())) +
+    '<table><tr><td class="l">Cargo</td><td class="l">Peligros</td><td class="l">Elemento</td><td class="l">Norma / especificación</td><td class="l">Vida útil (meses)</td></tr>' +
+    docs.map((d)=> (d.elementos || []).map((e, i)=> '<tr>' + (i ? '' : '<td rowspan="' + d.elementos.length + '">' + esc(d.cargo) + (d.area ? '<br><small>' + esc(d.area) + '</small>' : '') + '</td><td rowspan="' + d.elementos.length + '">' + esc(d.peligros || '') + '</td>') +
+      '<td>' + esc(e.elemento) + '</td><td>' + esc(e.norma || '') + '</td><td>' + esc(e.vidaUtil || '') + '</td></tr>').join('')).join('') + '</table>'], true);
+}
+
+$('tabs').addEventListener('click', (e)=>{ const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; document.querySelectorAll('#tabs button').forEach((x)=> x.classList.toggle('on', x === b)); pintar(); });
+document.addEventListener('click', (e)=>{ const v = e.target.closest('[data-volver]'); if (v) { e.preventDefault(); show('scrLista'); pintar(); } });
+window.addEventListener('outbox-enviado', ()=> cargar());
+cargar();
+</script>
+</body>
+</html>

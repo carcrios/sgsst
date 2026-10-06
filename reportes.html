@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#151b24">
+<title>Reportes e investigación · Portal SSTA</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="sgsst.css">
+<style>
+.clases{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-bottom:12px;}
+.clases button{border:2px solid var(--line);background:#fff;border-radius:12px;padding:12px 10px;text-align:left;cursor:pointer;font-family:inherit;color:var(--ink);min-height:74px;}
+.clases button b{display:block;font-size:14px;}
+.clases button span{font-size:11.5px;color:var(--muted);line-height:1.3;display:block;margin-top:3px;}
+.clases button.on{border-color:var(--ink);background:#f4f6f8;box-shadow:inset 0 0 0 1px var(--ink);}
+.clases button[data-c="Accidente de trabajo"].on{border-color:var(--mal);box-shadow:inset 0 0 0 1px var(--mal);background:#fff6f5;}
+.plazo{border-radius:12px;padding:12px 14px;margin-bottom:10px;font-size:13px;line-height:1.45;border:1px solid var(--line);background:#fff;}
+.plazo b{display:block;font-size:14px;margin-bottom:2px;}
+.plazo.mal{background:#fdecea;border-color:#f0c8c1;color:#8a2a1c;}
+.plazo.pronto{background:#fff6dd;border-color:#f1dca4;color:#6b4e00;}
+.plazo.ok{background:#eef8f2;border-color:#bfe3cd;color:#1d5c3a;}
+.checks label{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed #eef1f4;font-size:13.5px;line-height:1.35;cursor:pointer;}
+.checks input{width:20px;height:20px;flex:0 0 auto;margin-top:1px;}
+details.grupo{border:1px solid var(--line);border-radius:10px;padding:0 12px;margin-bottom:10px;background:#fff;}
+details.grupo summary{padding:12px 0;font-weight:700;font-size:13.5px;cursor:pointer;}
+details.grupo summary .n{font-weight:600;color:var(--muted);font-size:12px;}
+.equipo-inv{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:#fcfbf8;}
+.equipo-inv .rol{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ═══════ LISTA ═══════ -->
+<div class="screen active" id="scrLista">
+  <div class="hdr">
+    <a class="back" href="index.html">← Volver al portal</a>
+    <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><div class="eyebrow">Gestión SST</div>
+    <h1>Reportes e investigación</h1>
+    <p>Actos y condiciones inseguras, incidentes y accidentes de trabajo</p></div></div>
+  </div>
+  <div id="avisoSrv"></div>
+  <div id="avisoCopia"></div>
+  <button type="button" class="btn amber" id="btnReportar" style="margin:0 0 12px;">⚠️ Reportar ahora</button>
+  <div id="pendLegales"></div>
+  <div class="tabs" id="tabs">
+    <button type="button" class="on" data-tab="abiertos">Abiertos <span class="n" id="nAb">0</span></button>
+    <button type="button" data-tab="accidentes">Accidentes <span class="n" id="nAt">0</span></button>
+    <button type="button" data-tab="todos">Todos <span class="n" id="nTo">0</span></button>
+  </div>
+  <input type="search" class="buscar" id="buscar" placeholder="Buscar por lugar, descripción o persona">
+  <div id="lista"><div class="empty">Cargando…</div></div>
+  <div class="version-portal">Portal SSTA · versión v103</div>
+</div>
+
+<!-- ═══════ NUEVO REPORTE ═══════ -->
+<div class="screen" id="scrNuevo">
+  <div class="hdr">
+    <a class="back" href="#" data-volver>← Volver</a>
+    <div class="eyebrow">Gestión SST</div>
+    <h1>Nuevo reporte</h1>
+    <p>Funciona sin señal: se envía solo al volver la conexión</p>
+  </div>
+  <div class="clases" id="clases">
+    <button type="button" data-c="Acto inseguro"><b>🙅 Acto inseguro</b><span>Algo que una persona hace mal (sin arnés, sin bloqueo…)</span></button>
+    <button type="button" data-c="Condición insegura"><b>⚠️ Condición insegura</b><span>Algo del sitio o equipo que puede causar daño</span></button>
+    <button type="button" data-c="Incidente"><b>😮 Incidente</b><span>Casi accidente: pudo haber lesión y no la hubo</span></button>
+    <button type="button" data-c="Accidente de trabajo"><b>🚑 Accidente de trabajo</b><span>Hubo lesión. Plazo de reporte a la ARL: 2 días hábiles</span></button>
+  </div>
+  <div class="card">
+    <div class="grid2">
+      <div class="field"><label>Fecha</label><input type="date" id="nFecha"></div>
+      <div class="field"><label>Hora</label><input type="time" id="nHora"></div>
+    </div>
+    <div class="field"><label>Lugar / área</label><input type="text" id="nLugar" placeholder="Ej: Cuarto de calderas, andamio norte"></div>
+    <div class="field"><label>Centro de costo / cliente</label><input type="text" id="nCentro" list="centros" placeholder="Opcional"><datalist id="centros"></datalist></div>
+    <div class="field"><label>¿Qué pasó o qué se vio?</label><textarea id="nDesc" placeholder="Describe con hechos: qué, dónde, quién (si aplica) y cómo"></textarea></div>
+    <div class="field"><label>Fotos</label><div id="nFotos"></div></div>
+    <div class="field"><label>Potencial de daño</label><div class="chips" id="nPot"><button type="button" data-v="Alto">Alto</button><button type="button" data-v="Medio" class="on">Medio</button><button type="button" data-v="Bajo">Bajo</button></div></div>
+    <div class="field"><label>Acción inmediata tomada</label><textarea id="nInmediata" placeholder="Ej: se suspendió la tarea y se aisló el área"></textarea></div>
+  </div>
+  <div class="card" id="cardLesion" hidden>
+    <h2>🚑 Persona lesionada</h2>
+    <div class="field"><label>Nombre</label><input type="text" id="lNombre" placeholder="Escribe para buscar"></div>
+    <div class="grid2">
+      <div class="field"><label>Cédula</label><input type="text" id="lCedula" inputmode="numeric"></div>
+      <div class="field"><label>Cargo</label><input type="text" id="lCargo"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Parte del cuerpo</label><select id="lParte"></select></div>
+      <div class="field"><label>Tipo de lesión</label><select id="lTipo"></select></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Mecanismo</label><select id="lMecanismo"></select></div>
+      <div class="field"><label>Agente</label><select id="lAgente"></select></div>
+    </div>
+    <div class="field"><label>Atención</label><select id="lAtencion"><option>Primeros auxilios en sitio</option><option>Remitido a IPS / urgencias</option><option>Hospitalizado</option><option>Sin atención</option></select></div>
+    <div class="checks">
+      <label><input type="checkbox" id="lGrave"> <span><b>Accidente grave</b> (amputación, fractura de huesos largos, trauma craneoencefálico, quemadura de 2.º o 3.º grado, lesión severa de mano, columna u ojos…)</span></label>
+      <label><input type="checkbox" id="lMortal"> <span><b>Accidente mortal</b></span></label>
+    </div>
+  </div>
+  <div class="card">
+    <div class="field"><label>Quién reporta</label><input type="text" id="nQuien" placeholder="Tu nombre (escribe para buscar)"></div>
+    <label class="checks" id="filaAnonimo"><label style="border:0;padding:0;"><input type="checkbox" id="nAnonimo"> <span>Reportar de forma anónima (solo actos y condiciones)</span></label></label>
+  </div>
+  <button type="button" class="btn amber" id="btnEnviar">Enviar reporte</button>
+  <div class="status-msg" id="msgNuevo"></div>
+</div>
+
+<!-- ═══════ DETALLE ═══════ -->
+<div class="screen" id="scrDetalle">
+  <div class="hdr">
+    <a class="back" href="#" data-volver>← Volver a la lista</a>
+    <div class="eyebrow" id="dCodigo">—</div>
+    <h1 id="dTitulo">—</h1>
+    <p id="dSub">—</p>
+  </div>
+  <div id="dPlazos"></div>
+  <div class="card" id="dDatos"></div>
+  <div class="card" id="dFurat" hidden></div>
+  <div class="card" id="dInv" hidden></div>
+  <div class="card">
+    <h2>Acciones del plan de acción</h2>
+    <div id="dAcciones"><div class="status-msg">Cargando…</div></div>
+    <button type="button" class="btn ghost" id="btnAccion">+ Agregar acción</button>
+  </div>
+  <div class="fila-btn">
+    <button type="button" class="btn ghost" id="btnPdfRep">🖨️ PDF</button>
+    <button type="button" class="btn" id="btnCerrarRep">✅ Cerrar reporte</button>
+  </div>
+  <div class="status-msg" id="msgDet"></div>
+  <div class="card"><div id="dAdj"></div><div id="dHist"></div></div>
+</div>
+
+<!-- ═══════ INVESTIGACIÓN ═══════ -->
+<div class="screen" id="scrInv">
+  <div class="hdr">
+    <a class="back" href="#" id="volverInv">← Volver al reporte</a>
+    <div class="eyebrow" id="iCodigo">—</div>
+    <h1>Investigación</h1>
+    <p>Res. 1401 de 2007: dentro de los 15 días siguientes al evento</p>
+  </div>
+  <div class="card">
+    <h2>Equipo investigador</h2>
+    <p class="ayuda" style="margin-top:-4px;">Jefe inmediato o supervisor, un representante del COPASST o vigía, y el responsable de SST. Si fue grave o mortal, también un profesional con licencia en SST.</p>
+    <div id="iEquipo"></div>
+    <button type="button" class="btn ghost" id="btnMasEquipo">+ Agregar integrante</button>
+  </div>
+  <div class="card">
+    <h2>Descripción de los hechos</h2>
+    <div class="field"><textarea id="iHechos" style="min-height:110px;"></textarea></div>
+  </div>
+  <div class="card">
+    <h2>Causas</h2>
+    <details class="grupo" open><summary>Inmediatas · actos subestándar <span class="n" data-n="actos"></span></summary><div class="checks" id="cActos"></div></details>
+    <details class="grupo"><summary>Inmediatas · condiciones subestándar <span class="n" data-n="condiciones"></span></summary><div class="checks" id="cCondiciones"></div></details>
+    <details class="grupo"><summary>Básicas · factores personales <span class="n" data-n="personales"></span></summary><div class="checks" id="cPersonales"></div></details>
+    <details class="grupo"><summary>Básicas · factores del trabajo <span class="n" data-n="trabajo"></span></summary><div class="checks" id="cTrabajo"></div></details>
+    <div class="field"><label>¿Por qué pasó? (análisis, p. ej. 5 porqués)</label><textarea id="iAnalisis" style="min-height:96px;"></textarea></div>
+    <div class="field"><label>Conclusiones y lecciones aprendidas</label><textarea id="iConclusiones"></textarea></div>
+  </div>
+  <div class="aviso info">Las <b>medidas</b> (controles a implementar) se registran como acciones del plan de acción desde el reporte: así quedan con responsable, fecha y cierre.</div>
+  <div class="fila-btn">
+    <button type="button" class="btn ghost" id="btnGuardarInv">Guardar avance</button>
+    <button type="button" class="btn verde" id="btnCerrarInv">Terminar investigación</button>
+  </div>
+  <div class="status-msg" id="msgInv"></div>
+</div>
+
+</div>
+
+<script src="empresa.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="sgsst-ui.js"></script>
+<script>
+OfflineBanner.init();
+OutboxBadge.init();
+if (typeof Outbox !== 'undefined') Outbox.flush();
+if (typeof UpdateManager !== 'undefined') UpdateManager.init();
+
+const $ = UI.$;
+const AT = 'Accidente de trabajo';
+const LISTAS = {
+  parte: ['Cabeza', 'Ojos', 'Cuello', 'Tronco', 'Tórax', 'Abdomen', 'Miembros superiores', 'Manos', 'Miembros inferiores', 'Pies', 'Ubicaciones múltiples', 'Lesiones generales u otras'],
+  tipo: ['Golpe, contusión o aplastamiento', 'Herida', 'Trauma superficial (raspón, rasguño)', 'Fractura', 'Luxación', 'Torcedura, esguince o desgarro muscular', 'Quemadura', 'Amputación o enucleación',
+    'Conmoción o trauma interno', 'Envenenamiento o intoxicación', 'Efecto de la electricidad', 'Asfixia', 'Cuerpo extraño en ojo', 'Lesiones múltiples', 'Otra'],
+  mecanismo: ['Caída de personas', 'Caída de objetos', 'Pisadas, choques o golpes', 'Atrapamiento', 'Sobreesfuerzo o falso movimiento', 'Contacto con temperatura extrema',
+    'Contacto con electricidad', 'Contacto con sustancias nocivas o radiaciones', 'Proyección de partículas', 'Otro'],
+  agente: ['Máquinas o equipos', 'Herramientas o implementos', 'Medios de transporte', 'Aparatos (calderas, recipientes a presión…)', 'Materiales o sustancias', 'Ambiente de trabajo (superficies, escaleras, andamios)', 'Animales', 'Otros']
+};
+const CAUSAS = {
+  actos: ['Operar equipos sin autorización', 'No señalizar o no advertir', 'No asegurar ni bloquear energías', 'Operar a velocidad inadecuada', 'Anular o retirar dispositivos de seguridad',
+    'Usar equipo o herramienta defectuosa', 'No usar o usar mal el EPP', 'Cargar o levantar de forma incorrecta', 'Ubicarse o adoptar una posición inadecuada', 'Mantenimiento de equipos en movimiento o energizados',
+    'Bromas o distracciones', 'Trabajar bajo efectos de alcohol o drogas', 'Usar equipos de forma inapropiada', 'No seguir el procedimiento, el ATS o el permiso de trabajo'],
+  condiciones: ['Guardas o barreras inadecuadas', 'EPP inadecuado o insuficiente', 'Herramientas, equipos o materiales defectuosos', 'Espacio limitado o congestionado', 'Señalización o alarmas insuficientes',
+    'Peligro de incendio o explosión', 'Orden y aseo deficientes', 'Exposición a ruido', 'Temperaturas extremas', 'Iluminación deficiente', 'Ventilación insuficiente',
+    'Atmósfera peligrosa (gases, polvos, humos, vapores)', 'Superficies inseguras (resbalosas, desniveles, aberturas)', 'Trabajo en altura sin protección contra caídas', 'Energías peligrosas sin control'],
+  personales: ['Capacidad física inadecuada', 'Capacidad mental o psicológica inadecuada', 'Tensión física (fatiga, carga de trabajo)', 'Tensión mental (estrés, presión de tiempo)',
+    'Falta de conocimiento o de entrenamiento', 'Falta de habilidad o de experiencia', 'Motivación inadecuada'],
+  trabajo: ['Liderazgo o supervisión inadecuada', 'Ingeniería o diseño inadecuado', 'Compras inadecuadas (equipos, EPP, materiales)', 'Mantenimiento inadecuado', 'Herramientas o equipos inadecuados',
+    'Estándares o procedimientos inadecuados o inexistentes', 'Desgaste por uso normal', 'Abuso o mal uso', 'Comunicación deficiente']
+};
+let filas = [], acciones = [], tab = 'abiertos', clase = '', actual = null, fotosNuevo = null, padsEquipo = 0;
+
+function show(id){ document.querySelectorAll('.screen').forEach((s)=>s.classList.toggle('active', s.id === id)); window.scrollTo(0, 0); }
+function opciones(sel, lista){ $(sel).innerHTML = '<option value="">—</option>' + lista.map((x)=>'<option>' + esc(x) + '</option>').join(''); }
+['parte', 'tipo', 'mecanismo', 'agente'].forEach((k)=> opciones({ parte:'lParte', tipo:'lTipo', mecanismo:'lMecanismo', agente:'lAgente' }[k], LISTAS[k]));
+$('centros').innerHTML = (EMPRESA.centrosCosto || []).map((c)=> '<option value="' + esc(c) + '">').join('');
+
+/* Plazos legales de un accidente o incidente. */
+function plazos(r){
+  const res = r.resumen || r, out = [];
+  if (!res.fecha) return out;
+  if (res.clase === AT) {
+    const lim = Festivos.sumarHabiles(res.fecha, 2);
+    out.push(res.furat && res.furat.radicado ? { c:'ok', t:'Reporte a la ARL (FURAT) radicado', d: (res.furat.numero ? 'N.º ' + res.furat.numero : '') + (res.furat.fecha ? ' · ' + UI.corta(res.furat.fecha) : '') }
+      : { c: lim < UI.hoy() ? 'mal' : 'pronto', t:'Reporte a la ARL (FURAT): ' + (lim < UI.hoy() ? 'VENCIDO el ' : 'a más tardar el ') + UI.corta(lim), d:'2 días hábiles desde el accidente. Regístralo abajo cuando se radique.' });
+  }
+  if (res.clase === AT || res.clase === 'Incidente') {
+    const lim = Festivos.sumarDias(res.fecha, 15), inv = res.investigacion || {};
+    out.push(inv.estado === 'CERRADA' ? { c:'ok', t:'Investigación terminada', d: inv.fecha ? UI.corta(inv.fecha) : '' }
+      : { c: lim < UI.hoy() ? 'mal' : 'pronto', t:'Investigación: ' + (lim < UI.hoy() ? 'VENCIDA el ' : 'a más tardar el ') + UI.corta(lim), d:'Res. 1401 de 2007: dentro de los 15 días siguientes.' + ((res.grave || res.mortal) ? ' Grave o mortal: se remite a la ARL' + (res.mortal ? ' y a la Dirección Territorial del Ministerio de Trabajo' : '') + '.' : '') });
+  }
+  return out;
+}
+const iconoClase = (c)=> ({ 'Acto inseguro':'🙅', 'Condición insegura':'⚠️', 'Incidente':'😮', [AT]:'🚑' }[c] || '•');
+
+async function cargar(){
+  if (UI.avisoServidor($('avisoSrv'))) { $('lista').innerHTML = ''; $('btnReportar').disabled = true; return; }
+  // Con usuarios, cualquiera puede REPORTAR sin entrar; la lista sí es solo para usuarios.
+  const r = await SGSST.listar('reporte', { sinPedir: true });
+  UI.avisoCopia($('avisoCopia'), r);
+  if (r.sinSesion) $('avisoCopia').innerHTML = '<div class="aviso info">Puedes <b>reportar sin usuario</b> con el botón de abajo. Para ver la lista y hacer seguimiento, <button type="button" class="btn-mini" id="btnEntrarRep">entra con tu usuario</button>.</div>';
+  if ($('btnEntrarRep')) $('btnEntrarRep').addEventListener('click', ()=> Sesion.pedir());
+  filas = r.rows;
+  pintar();
+}
+function pintar(){
+  const q = UI.norm($('buscar').value).trim();
+  const ab = filas.filter((x)=> x.estado !== 'CERRADO');
+  $('nAb').textContent = ab.length; $('nAt').textContent = filas.filter((x)=> x.resumen.clase === AT).length; $('nTo').textContent = filas.length;
+  // Lo legal pendiente, arriba y en rojo.
+  const pend = [];
+  filas.forEach((x)=> plazos(x).forEach((p)=>{ if (p.c !== 'ok') pend.push({ x, p }); }));
+  $('pendLegales').innerHTML = pend.map(({ x, p })=> '<button type="button" class="plazo ' + p.c + '" data-id="' + esc(x.id) + '" style="width:100%;text-align:left;cursor:pointer;font-family:inherit;"><b>' + esc(p.t) + '</b>' + esc(x.resumen.clase + ' · ' + UI.corta(x.resumen.fecha) + ' · ' + (x.resumen.lesionado || x.resumen.lugar || '')) + '</button>').join('');
+  let l = tab === 'abiertos' ? ab : tab === 'accidentes' ? filas.filter((x)=> x.resumen.clase === AT) : filas.slice();
+  if (q) l = l.filter((x)=> UI.norm([x.resumen.lugar, x.resumen.descripcion, x.resumen.lesionado, x.resumen.reportadoPor, x.resumen.centro].join(' ')).includes(q));
+  l.sort((a, b)=> String(b.resumen.fecha + b.resumen.hora).localeCompare(String(a.resumen.fecha + a.resumen.hora)));
+  $('lista').innerHTML = l.length ? l.map((x)=>{
+    const s = x.resumen, pl = plazos(x), c = x.estado === 'CERRADO' ? 'gris' : pl.some((p)=> p.c === 'mal') ? 'mal' : (s.clase === AT || s.potencial === 'Alto') ? 'pronto' : 'ok';
+    return '<button type="button" class="item ' + c + '" data-id="' + esc(x.id) + '"><div class="fila"><div><div class="t">' + iconoClase(s.clase) + ' ' + esc(s.clase) + (s.lugar ? ' · ' + esc(s.lugar) : '') + '</div>' +
+      '<div class="m">' + esc(s.descripcion) + '</div><div class="m">' + esc(UI.corta(s.fecha)) + (s.hora ? ' ' + esc(s.hora) : '') + (s.reportadoPor ? ' · ' + esc(s.reportadoPor) : '') +
+      (s.fotos ? ' · 📷 ' + s.fotos : '') + (s.acciones ? ' · ' + s.acciones + ' acción(es)' : '') + (x.pendiente ? ' · <span class="pend">⏳ pendiente de enviar</span>' : '') + '</div></div>' +
+      '<span class="chip ' + (x.estado === 'CERRADO' ? '' : c) + '">' + esc(x.estado === 'CERRADO' ? 'Cerrado' : (s.potencial ? 'Potencial ' + s.potencial.toLowerCase() : 'Abierto')) + '</span></div></button>';
+  }).join('') : '<div class="empty">' + (filas.length ? 'Nada en esta lista.' : 'Todavía no hay reportes. Cada acto o condición insegura reportado a tiempo es un accidente que no pasa.') + '</div>';
+}
+
+/* ── Nuevo reporte ── */
+function ponerClase(c){
+  clase = c;
+  document.querySelectorAll('#clases button').forEach((b)=> b.classList.toggle('on', b.dataset.c === c));
+  $('cardLesion').hidden = c !== AT;
+  $('filaAnonimo').style.display = (c === 'Acto inseguro' || c === 'Condición insegura') ? '' : 'none';
+  if (c !== 'Acto inseguro' && c !== 'Condición insegura') $('nAnonimo').checked = false;
+}
+function nuevo(){
+  const ahora = new Date(); ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
+  $('nFecha').value = ahora.toISOString().slice(0, 10); $('nHora').value = ahora.toISOString().slice(11, 16);
+  ['nLugar', 'nCentro', 'nDesc', 'nInmediata', 'lNombre', 'lCedula', 'lCargo'].forEach((id)=> $(id).value = '');
+  ['lParte', 'lTipo', 'lMecanismo', 'lAgente'].forEach((id)=> $(id).value = '');
+  $('lGrave').checked = $('lMortal').checked = $('nAnonimo').checked = false;
+  $('lAtencion').selectedIndex = 0;
+  $('nPot').querySelectorAll('button').forEach((x)=> x.classList.toggle('on', x.dataset.v === 'Medio'));
+  try { $('nQuien').value = localStorage.getItem('ssta-reporta') || ''; } catch (e) {}
+  fotosNuevo = UI.fotos($('nFotos'), { max: 4 });
+  ponerClase(''); $('msgNuevo').textContent = '';
+  show('scrNuevo');
+}
+$('clases').addEventListener('click', (e)=>{ const b = e.target.closest('[data-c]'); if (b) ponerClase(b.dataset.c); });
+$('nPot').addEventListener('click', (e)=>{ const b = e.target.closest('[data-v]'); if (!b) return; $('nPot').querySelectorAll('button').forEach((x)=> x.classList.toggle('on', x === b)); });
+UI.autocompletar($('nQuien'), (p)=> { $('nQuien').value = p.nombre; });
+UI.autocompletar($('lNombre'), (p)=> { $('lNombre').value = p.nombre; $('lCedula').value = p.cedula || ''; $('lCargo').value = p.cargo || ''; });
+
+$('btnEnviar').addEventListener('click', async ()=>{
+  const msg = $('msgNuevo');
+  if (!clase) { msg.textContent = 'Elige qué vas a reportar (arriba).'; window.scrollTo(0, 0); return; }
+  if (!$('nDesc').value.trim()) { msg.textContent = 'Describe qué pasó o qué se vio.'; $('nDesc').focus(); return; }
+  if (clase === AT && !$('lNombre').value.trim()) { msg.textContent = 'Falta la persona lesionada.'; $('lNombre').focus(); return; }
+  const anonimo = $('nAnonimo').checked;
+  if (!anonimo && !$('nQuien').value.trim()) { msg.textContent = 'Escribe quién reporta (o marca anónimo si es un acto o condición).'; $('nQuien').focus(); return; }
+  const doc = { clase, fecha: $('nFecha').value, hora: $('nHora').value, lugar: $('nLugar').value.trim(), centro: $('nCentro').value.trim(),
+    descripcion: $('nDesc').value.trim(), fotos: fotosNuevo.get(), potencial: ($('nPot').querySelector('.on') || {}).dataset.v || 'Medio',
+    accionInmediata: $('nInmediata').value.trim(), anonimo, reportadoPor: anonimo ? '' : $('nQuien').value.trim(), estado: 'ABIERTO', acciones: [] };
+  if (clase === AT) {
+    doc.lesionado = { nombre: $('lNombre').value.trim(), cedula: $('lCedula').value.trim(), cargo: $('lCargo').value.trim(), parteCuerpo: $('lParte').value,
+      tipoLesion: $('lTipo').value, mecanismo: $('lMecanismo').value, agente: $('lAgente').value, atencion: $('lAtencion').value };
+    doc.grave = $('lGrave').checked; doc.mortal = $('lMortal').checked; doc.diasIncapacidad = 0; doc.diasCargados = 0; doc.furat = { radicado: false };
+  }
+  if (clase === AT || clase === 'Incidente') doc.investigacion = { estado: 'PENDIENTE' };
+  if (!anonimo) try { localStorage.setItem('ssta-reporta', doc.reportadoPor); } catch (e) {}
+  const id = SGSST.nuevoId('REP');
+  $('btnEnviar').disabled = true; msg.textContent = 'Enviando…';
+  const res = { clase, fecha: doc.fecha, hora: doc.hora, lugar: doc.lugar, centro: doc.centro, descripcion: doc.descripcion.slice(0, 160), potencial: doc.potencial,
+    reportadoPor: anonimo ? 'Anónimo' : doc.reportadoPor, lesionado: doc.lesionado ? doc.lesionado.nombre : '', fotos: doc.fotos.length, furat: { radicado: false }, investigacion: doc.investigacion || {}, mortal: !!doc.mortal, grave: !!doc.grave };
+  const r = await SGSST.enviar({ action:'guardar', tipo:'reporte', id, doc }, { estado: 'ABIERTO', fecha: doc.fecha, resumen: res });
+  $('btnEnviar').disabled = false;
+  if (!r.ok) { msg.textContent = 'No se envió: ' + (r.error || 'error'); return; }
+  filas.unshift({ id, tipo:'reporte', estado:'ABIERTO', fecha: doc.fecha, resumen: r.resumen || res, pendiente: !!r.enCola });
+  UI.toast(r.enCola ? '⏳ Reporte guardado en el equipo: se envía al volver la señal.' : '✓ Reporte enviado. ¡Gracias por reportar!');
+  actual = Object.assign({ id, version: r.version || 1 }, doc);
+  pintarDetalle();
+  show('scrDetalle');
+});
+
+/* ── Detalle ── */
+async function abrir(id){
+  const fila = filas.find((x)=> x.id === id);
+  $('dTitulo').textContent = fila ? fila.resumen.clase : 'Reporte';
+  $('dDatos').innerHTML = '<div class="status-msg">Abriendo…</div>';
+  $('dFurat').hidden = $('dInv').hidden = true; $('dPlazos').innerHTML = '';
+  show('scrDetalle');
+  const d = await SGSST.doc(id);
+  if (!d) { $('dDatos').innerHTML = '<div class="aviso">No se pudo abrir el reporte' + (fila && fila.pendiente ? ' (todavía está pendiente de enviar desde este equipo)' : '') + '. Revisa la conexión.</div>'; return; }
+  actual = d; pintarDetalle();
+}
+function dato(et, v){ return v ? '<div class="dato"><span>' + esc(et) + '</span><b>' + esc(v) + '</b></div>' : ''; }
+function pintarDetalle(){
+  const d = actual;
+  $('dCodigo').textContent = d.id + (d.estado === 'CERRADO' ? ' · CERRADO' : '');
+  $('dTitulo').textContent = iconoClase(d.clase) + ' ' + d.clase;
+  $('dSub').textContent = UI.corta(d.fecha) + (d.hora ? ' ' + d.hora : '') + (d.lugar ? ' · ' + d.lugar : '');
+  $('dPlazos').innerHTML = plazos(d).map((p)=> '<div class="plazo ' + p.c + '"><b>' + esc(p.t) + '</b>' + esc(p.d) + '</div>').join('');
+  const l = d.lesionado || {};
+  $('dDatos').innerHTML = '<h2>Reporte</h2><div class="texto-largo">' + esc(d.descripcion) + '</div>' +
+    (d.fotos && d.fotos.length ? '<div class="fotos" style="margin-top:10px;">' + d.fotos.map(UI.src).filter(Boolean).map((f)=> '<div class="f"><img src="' + f + '" alt="Foto"></div>').join('') + '</div>' : '') +
+    '<div style="margin-top:8px;">' + dato('Centro de costo', d.centro) + dato('Potencial', d.potencial) + dato('Acción inmediata', d.accionInmediata) + dato('Reportado por', d.anonimo ? 'Anónimo' : d.reportadoPor) +
+    (d.clase === AT ? dato('Lesionado', [l.nombre, l.cedula && 'C.C. ' + l.cedula, l.cargo].filter(Boolean).join(' · ')) + dato('Parte del cuerpo', l.parteCuerpo) + dato('Tipo de lesión', l.tipoLesion) +
+      dato('Mecanismo', l.mecanismo) + dato('Agente', l.agente) + dato('Atención', l.atencion) + dato('Gravedad', d.mortal ? 'MORTAL' : d.grave ? 'Grave' : 'Leve') : '') + '</div>' +
+    (d.cierre && d.cierre.fecha ? '<div class="aviso ok" style="margin-top:10px;">Cerrado el ' + esc(UI.corta(d.cierre.fecha)) + (d.cierre.nota ? ': ' + esc(d.cierre.nota) : '') + '</div>' : '');
+  // FURAT e incapacidad (solo accidentes)
+  if (d.clase === AT) {
+    const f = d.furat || {};
+    $('dFurat').hidden = false;
+    $('dFurat').innerHTML = '<h2>Reporte a la ARL e incapacidad</h2>' +
+      '<div class="grid2"><div class="field"><label>FURAT radicado el</label><input type="date" id="fFecha" value="' + esc(f.fecha || '') + '"></div>' +
+      '<div class="field"><label>N.º de radicado</label><input type="text" id="fNumero" value="' + esc(f.numero || '') + '"></div></div>' +
+      '<div class="grid2"><div class="field"><label>Días de incapacidad</label><input type="number" min="0" id="fDias" value="' + esc(d.diasIncapacidad || 0) + '"></div>' +
+      '<div class="field"><label>Días cargados</label><input type="number" min="0" id="fCargados" value="' + esc(d.diasCargados || 0) + '"><div class="ayuda">Por muerte o secuelas permanentes (tabla de días cargados). 0 si no aplica.</div></div></div>' +
+      '<button type="button" class="btn" id="btnFurat">Guardar</button>';
+    $('btnFurat').addEventListener('click', async ()=>{
+      const fecha = $('fFecha').value;
+      const campos = { furat: { radicado: !!fecha, fecha, numero: $('fNumero').value.trim() }, diasIncapacidad: +$('fDias').value || 0, diasCargados: +$('fCargados').value || 0 };
+      await parche(campos, '✓ Guardado');
+    });
+  } else $('dFurat').hidden = true;
+  // Investigación
+  if (d.clase === AT || d.clase === 'Incidente' || d.investigacion) {
+    const inv = d.investigacion || {};
+    $('dInv').hidden = false;
+    const causas = inv.causas ? Object.keys(inv.causas).reduce((n, k)=> n + (inv.causas[k] || []).length, 0) : 0;
+    $('dInv').innerHTML = '<h2>Investigación</h2><div class="m" style="font-size:13px;color:var(--muted);">' +
+      (inv.estado === 'CERRADA' ? '✅ Terminada el ' + esc(UI.corta(inv.fecha)) + ' · ' + causas + ' causa(s) identificada(s) · ' + (inv.equipo || []).length + ' investigador(es)' :
+       inv.estado === 'EN CURSO' ? '🔎 En curso · ' + causas + ' causa(s) marcada(s)' : 'Sin iniciar') + '</div>' +
+      '<button type="button" class="btn ' + (inv.estado === 'CERRADA' ? 'ghost' : 'amber') + '" id="btnInv">' + (inv.estado === 'CERRADA' ? 'Ver o corregir la investigación' : inv.estado === 'EN CURSO' ? 'Continuar investigación' : 'Iniciar investigación') + '</button>';
+    $('btnInv').addEventListener('click', abrirInvestigacion);
+  } else $('dInv').hidden = true;
+  $('btnCerrarRep').style.display = d.estado === 'CERRADO' ? 'none' : '';
+  $('msgDet').textContent = '';
+  // Soportes: FURAT radicado, incapacidades, informe de investigación, fotos de la escena…
+  UI.adjuntos($('dAdj'), { id: d.id, lista: d.adjuntos || [], titulo: 'Soportes (FURAT, incapacidad, investigación…)', alCambiar: (l)=> { d.adjuntos = l; } });
+  $('dHist').innerHTML = ''; $('dHist').appendChild(UI.botonHistorial(d.id, d.clase));
+  cargarAcciones();
+}
+async function cargarAcciones(){
+  const r = await SGSST.listar('accion', { sinPedir: true });
+  acciones = r.rows.filter((a)=> a.resumen.origenRef === actual.id);
+  $('dAcciones').innerHTML = acciones.length ? acciones.map((a)=>{
+    const c = a.estado === 'CERRADA' ? 'ok' : UI.semaforo(a.resumen.fechaCompromiso, 5);
+    return '<a class="item ' + c + '" href="plan-accion.html#' + encodeURIComponent(a.id) + '"><div class="fila"><div><div class="t">' + esc(a.resumen.accion || a.resumen.hallazgo) + '</div>' +
+      '<div class="m">' + esc(a.resumen.responsable) + ' · ' + esc(UI.corta(a.resumen.fechaCompromiso)) + (a.pendiente ? ' · <span class="pend">⏳ pendiente</span>' : '') + '</div></div>' +
+      '<span class="chip ' + c + '">' + (a.estado === 'CERRADA' ? 'Cerrada' : c === 'mal' ? 'Vencida' : 'Abierta') + '</span></div></a>';
+  }).join('') : '<div class="m" style="font-size:13px;color:var(--muted);margin-bottom:6px;">Sin acciones todavía. Toda causa encontrada debe tener su acción.</div>';
+}
+async function parche(campos, ok){
+  $('msgDet').textContent = 'Guardando…';
+  const r = await SGSST.enviar({ action:'parche', tipo:'reporte', id: actual.id, campos });
+  if (!r.ok) { $('msgDet').textContent = 'No se guardó: ' + (r.error || ''); return false; }
+  Object.assign(actual, campos);
+  const i = filas.findIndex((x)=> x.id === actual.id);
+  if (i !== -1 && r.resumen) { filas[i].resumen = r.resumen; filas[i].estado = r.estado || filas[i].estado; }
+  else if (i !== -1) { Object.assign(filas[i].resumen, campos); if (campos.estado) filas[i].estado = campos.estado; }
+  pintarDetalle();
+  $('msgDet').textContent = r.enCola ? '⏳ Guardado en el equipo; se envía al volver la señal.' : ok;
+  return true;
+}
+$('btnAccion').addEventListener('click', ()=>{
+  const origen = actual.clase === AT ? 'Accidente de trabajo' : actual.clase === 'Incidente' ? 'Incidente' : 'Reporte de acto/condición';
+  UI.nuevaAccion({ origen, origenRef: actual.id, hallazgo: actual.descripcion, centro: actual.centro, prioridad: actual.potencial === 'Alto' || actual.clase === AT ? 'Alta' : 'Media' }, async (r)=>{
+    await SGSST.enviar({ action:'parche', tipo:'reporte', id: actual.id, campos: {}, agregar: { acciones: [r.id] } });
+    actual.acciones = (actual.acciones || []).concat([r.id]);
+    cargarAcciones();
+  });
+});
+$('btnCerrarRep').addEventListener('click', async ()=>{
+  const inv = actual.investigacion || {};
+  if ((actual.clase === AT || actual.clase === 'Incidente') && inv.estado !== 'CERRADA' && !confirm('La investigación no está terminada. ¿Cerrar el reporte de todas formas?')) return;
+  const abiertas = acciones.filter((a)=> a.estado !== 'CERRADA').length;
+  if (abiertas && !confirm('Hay ' + abiertas + ' acción(es) sin cerrar. El reporte se cierra, pero las acciones siguen en el plan de acción. ¿Continuar?')) return;
+  const nota = prompt('Nota de cierre (opcional):', '') ;
+  if (nota === null) return;
+  await parche({ estado:'CERRADO', cierre: { fecha: UI.hoy(), nota } }, '✓ Reporte cerrado');
+});
+
+/* ── Investigación ── */
+function abrirInvestigacion(){
+  const inv = actual.investigacion || {};
+  $('iCodigo').textContent = actual.id + ' · ' + actual.clase;
+  $('iHechos').value = inv.hechos || actual.descripcion || '';
+  $('iAnalisis').value = inv.analisis || ''; $('iConclusiones').value = inv.conclusiones || '';
+  const marcar = (cont, lista, sel)=> { $(cont).innerHTML = lista.map((t)=> '<label><input type="checkbox" value="' + esc(t) + '"' + ((sel || []).indexOf(t) !== -1 ? ' checked' : '') + '><span>' + esc(t) + '</span></label>').join(''); };
+  const c = inv.causas || {};
+  marcar('cActos', CAUSAS.actos, c.actos); marcar('cCondiciones', CAUSAS.condiciones, c.condiciones); marcar('cPersonales', CAUSAS.personales, c.personales); marcar('cTrabajo', CAUSAS.trabajo, c.trabajo);
+  contarCausas();
+  $('iEquipo').innerHTML = ''; padsEquipo = 0;
+  const eq = inv.equipo && inv.equipo.length ? inv.equipo : [{ rol:'Jefe inmediato o supervisor' }, { rol:'Representante del COPASST o vigía' }, { rol:'Responsable de SST' }];
+  eq.forEach(agregarIntegrante);
+  $('msgInv').textContent = '';
+  show('scrInv');
+}
+function contarCausas(){ document.querySelectorAll('summary span[data-n]').forEach((s)=>{ const id = { actos:'cActos', condiciones:'cCondiciones', personales:'cPersonales', trabajo:'cTrabajo' }[s.dataset.n]; const n = $(id).querySelectorAll('input:checked').length; s.textContent = n ? '· ' + n + ' marcada(s)' : ''; }); }
+document.addEventListener('change', (e)=>{ if (e.target.closest('.checks')) contarCausas(); });
+function agregarIntegrante(p){
+  const n = ++padsEquipo, d = document.createElement('div');
+  d.className = 'equipo-inv'; d.dataset.n = n;
+  d.innerHTML = '<div class="rol"><input type="text" class="rolTxt" value="' + esc(p.rol || '') + '" placeholder="Rol en la investigación" style="border:0;background:transparent;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--muted);width:100%;padding:0;"></div>' +
+    '<div class="field"><input type="text" class="nom" placeholder="Nombre (escribe para buscar)" value="' + esc(p.nombre || '') + '"></div>' +
+    '<div class="field"><input type="text" class="ced" placeholder="Cédula" inputmode="numeric" value="' + esc(p.cedula || '') + '"></div>' + UI.padHTML('padInv' + n);
+  $('iEquipo').appendChild(d);
+  UI.activarPad('padInv' + n, p.firma);
+  UI.autocompletar(d.querySelector('.nom'), (x)=>{ d.querySelector('.nom').value = x.nombre; d.querySelector('.ced').value = x.cedula || ''; });
+}
+$('btnMasEquipo').addEventListener('click', ()=> agregarIntegrante({ rol:'Integrante' }));
+function leerInv(estado){
+  const sel = (id)=> [...$(id).querySelectorAll('input:checked')].map((c)=> c.value);
+  const prev = actual.investigacion || {};
+  return { estado, fecha: estado === 'CERRADA' ? UI.hoy() : (prev.fecha || ''), inicio: prev.inicio || UI.hoy(), hechos: $('iHechos').value.trim(), analisis: $('iAnalisis').value.trim(), conclusiones: $('iConclusiones').value.trim(),
+    causas: { actos: sel('cActos'), condiciones: sel('cCondiciones'), personales: sel('cPersonales'), trabajo: sel('cTrabajo') },
+    equipo: [...$('iEquipo').querySelectorAll('.equipo-inv')].map((d)=> ({ rol: d.querySelector('.rolTxt').value.trim(), nombre: d.querySelector('.nom').value.trim(), cedula: d.querySelector('.ced').value.trim(), firma: UI.firma('padInv' + d.dataset.n) || null })).filter((x)=> x.nombre) };
+}
+async function guardarInv(estado){
+  const inv = leerInv(estado);
+  if (estado === 'CERRADA') {
+    const falta = [];
+    if (inv.equipo.length < 2) falta.push('al menos 2 integrantes del equipo investigador');
+    if (inv.equipo.some((x)=> !x.firma)) falta.push('la firma de cada integrante');
+    const nc = Object.keys(inv.causas).reduce((n, k)=> n + inv.causas[k].length, 0);
+    if (!nc) falta.push('las causas (inmediatas y básicas)');
+    if (!inv.hechos) falta.push('la descripción de los hechos');
+    if (falta.length) { $('msgInv').textContent = 'Para terminar falta: ' + falta.join(', ') + '.'; return; }
+  }
+  $('msgInv').textContent = 'Guardando…';
+  const ok = await parche({ investigacion: inv }, '✓ Investigación guardada');
+  if (!ok) { $('msgInv').textContent = $('msgDet').textContent; return; }
+  $('msgInv').textContent = '';
+  show('scrDetalle');
+  if (estado === 'CERRADA' && !acciones.length) UI.toast('Ahora registra las medidas como acciones del plan de acción.');
+}
+$('btnGuardarInv').addEventListener('click', ()=> guardarInv('EN CURSO'));
+$('btnCerrarInv').addEventListener('click', ()=> guardarInv('CERRADA'));
+$('volverInv').addEventListener('click', (e)=>{ e.preventDefault(); show('scrDetalle'); });
+
+/* ── PDF del reporte (con la investigación y sus acciones) ── */
+$('btnPdfRep').addEventListener('click', ()=>{
+  const d = actual, l = d.lesionado || {}, inv = d.investigacion || {}, f = d.furat || {};
+  let h = UI.cabecera('SG-REPORTE', d.clase === AT || d.clase === 'Incidente' ? 'REPORTE E INVESTIGACIÓN DE ' + d.clase.toUpperCase() : 'REPORTE DE ' + d.clase.toUpperCase(), 'Registro ' + d.id + (d.estado === 'CERRADO' ? ' · CERRADO' : ''));
+  h += UI.seccion('1. Datos del evento', UI.tablaDatos([['Clase', d.clase], ['Fecha y hora', UI.corta(d.fecha) + ' ' + (d.hora || '')], ['Lugar', d.lugar || '—'], ['Centro de costo', d.centro || '—'],
+    ['Potencial', d.potencial || '—'], ['Reportado por', d.anonimo ? 'Anónimo' : (d.reportadoPor || '—')]]) + UI.textoLargo(d.descripcion) +
+    (d.accionInmediata ? UI.tablaDatos([['Acción inmediata', d.accionInmediata]]) : '') + UI.fotosHoja(d.fotos));
+  if (d.clase === AT) h += UI.seccion('2. Persona lesionada y reporte a la ARL', UI.tablaDatos([['Nombre', l.nombre || '—'], ['Cédula', l.cedula || '—'], ['Cargo', l.cargo || '—'], ['Atención', l.atencion || '—'],
+    ['Parte del cuerpo', l.parteCuerpo || '—'], ['Tipo de lesión', l.tipoLesion || '—'], ['Mecanismo', l.mecanismo || '—'], ['Agente', l.agente || '—'],
+    ['Gravedad', d.mortal ? 'MORTAL' : d.grave ? 'GRAVE' : 'Leve'], ['Días de incapacidad / cargados', (d.diasIncapacidad || 0) + ' / ' + (d.diasCargados || 0)],
+    ['FURAT', f.radicado ? 'Radicado el ' + UI.corta(f.fecha) + (f.numero ? ' · N.º ' + f.numero : '') : 'Pendiente (plazo ' + UI.corta(Festivos.sumarHabiles(d.fecha, 2)) + ')'], ['', '']]));
+  if (inv.estado && inv.estado !== 'PENDIENTE') {
+    const c = inv.causas || {}, lista = (t, x)=> '<tr><td class="l" style="width:22%">' + esc(t) + '</td><td>' + ((x || []).length ? (x || []).map(esc).join(' · ') : '—') + '</td></tr>';
+    h += UI.seccion('3. Investigación (Res. 1401 de 2007) · ' + (inv.estado === 'CERRADA' ? 'terminada el ' + UI.corta(inv.fecha) : 'en curso'),
+      UI.textoLargo(inv.hechos) + '<table>' + lista('Actos subestándar', c.actos) + lista('Condiciones subestándar', c.condiciones) + lista('Factores personales', c.personales) + lista('Factores del trabajo', c.trabajo) + '</table>' +
+      (inv.analisis ? UI.tablaDatos([['Análisis', inv.analisis]]) : '') + (inv.conclusiones ? UI.tablaDatos([['Conclusiones', inv.conclusiones]]) : '') +
+      '<table><tr><th>Rol</th><th>Nombre</th><th>Cédula</th><th>Firma</th></tr>' + (inv.equipo || []).map((x)=> '<tr><td>' + esc(x.rol) + '</td><td>' + esc(x.nombre) + '</td><td>' + esc(x.cedula) + '</td><td>' + UI.firmaHoja(x.firma) + '</td></tr>').join('') + '</table>');
+  }
+  h += UI.seccion('Acciones (plan de acción)', acciones.length ? '<table><tr><th>Acción</th><th>Responsable</th><th>Compromiso</th><th>Estado</th></tr>' +
+    acciones.map((a)=> '<tr><td>' + esc(a.resumen.accion) + '</td><td>' + esc(a.resumen.responsable) + '</td><td>' + esc(UI.corta(a.resumen.fechaCompromiso)) + '</td><td>' + esc(a.estado) + '</td></tr>').join('') + '</table>' : UI.textoLargo('Sin acciones registradas.'));
+  UI.imprimir([h], false);
+});
+
+/* ── Navegación ── */
+$('btnReportar').addEventListener('click', nuevo);
+$('tabs').addEventListener('click', (e)=>{ const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; document.querySelectorAll('#tabs button').forEach((x)=> x.classList.toggle('on', x === b)); pintar(); });
+$('buscar').addEventListener('input', pintar);
+document.addEventListener('click', (e)=>{
+  const it = e.target.closest('#lista [data-id], #pendLegales [data-id]'); if (it) { abrir(it.dataset.id); return; }
+  if (e.target.closest('[data-volver]')) { e.preventDefault(); show('scrLista'); pintar(); }
+});
+window.addEventListener('outbox-enviado', ()=> cargar());
+cargar().then(()=>{ if (/[?&]nuevo=1/.test(location.search)) nuevo(); else if (location.hash.length > 1) abrir(decodeURIComponent(location.hash.slice(1))); });
+</script>
+</body>
+</html>

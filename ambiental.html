@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#151b24">
+<title>Gestión ambiental · Portal SSTA</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="sgsst.css">
+<style>
+.barras{display:flex;align-items:flex-end;gap:4px;height:90px;margin:8px 0 4px;}
+.barras div{flex:1;background:#7fb08f;border-radius:4px 4px 0 0;min-height:2px;position:relative;}
+.barras div.mal{background:#d98c7f;}
+.mesesb{display:flex;gap:4px;font-size:10px;color:var(--muted);} .mesesb span{flex:1;text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="screen active" id="scrLista">
+  <div class="hdr">
+    <a class="back" href="index.html">← Volver al portal</a>
+    <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><div class="eyebrow">HSEQ · Ambiental</div>
+    <h1>Gestión ambiental</h1>
+    <p>Aspectos e impactos (ISO 14001), residuos y RESPEL, consumos de agua, energía y combustible</p></div></div>
+  </div>
+  <div id="avisoSrv"></div><div id="avisoCopia"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="tabs" id="tabs">
+    <button type="button" class="on" data-tab="aspectos">Aspectos e impactos <span class="n" id="nAsp">0</span></button>
+    <button type="button" data-tab="residuos">Residuos <span class="n" id="nRes">0</span></button>
+    <button type="button" data-tab="consumos">Consumos <span class="n" id="nCon">0</span></button>
+  </div>
+  <div id="panel"><div class="empty">Cargando…</div></div>
+  <div class="version-portal">Portal SSTA · versión v103</div>
+</div>
+</div>
+<script src="empresa.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="sgsst-ui.js"></script>
+<script src="registros.js"></script>
+<script>
+OfflineBanner.init();
+OutboxBadge.init();
+if (typeof Outbox !== 'undefined') Outbox.flush();
+if (typeof UpdateManager !== 'undefined') UpdateManager.init();
+
+const $ = UI.$;
+/* Valoración de aspectos (método de referencia del portal; ajústalo al procedimiento de la empresa):
+   valor = frecuencia × severidad × alcance (cada uno de 1 a 3). Significativo si el valor es 12 o más,
+   si es una situación de emergencia con severidad 3, o si hay un requisito legal aplicable que no se cumple. */
+const ESCALA = { frecuencia: ['1 · Ocasional', '2 · Periódica', '3 · Permanente'], severidad: ['1 · Baja (reversible, sin daño apreciable)', '2 · Media', '3 · Alta (daño grave o irreversible)'], alcance: ['1 · Puntual (dentro del sitio)', '2 · Local', '3 · Regional'] };
+const C_ASP = [{ k: 'proceso', l: 'Proceso', req: true, medio: true }, { k: 'actividad', l: 'Actividad', medio: true },
+  { k: 'aspecto', l: 'Aspecto ambiental', req: true, ph: 'Ej: generación de residuos peligrosos (trapos con aceite)' }, { k: 'impacto', l: 'Impacto ambiental', req: true, ph: 'Ej: contaminación del suelo' },
+  { k: 'condicion', l: 'Condición', t: 'select', op: ['Normal', 'Anormal', 'Emergencia'], medio: true }, { k: 'tipoImpacto', l: 'Tipo de impacto', t: 'select', op: ['Negativo', 'Positivo'], medio: true },
+  { k: 'frecuencia', l: 'Frecuencia', t: 'select', op: ESCALA.frecuencia.map((x, i)=> [String(i + 1), x]), medio: true }, { k: 'severidad', l: 'Severidad', t: 'select', op: ESCALA.severidad.map((x, i)=> [String(i + 1), x]), medio: true },
+  { k: 'alcance', l: 'Alcance', t: 'select', op: ESCALA.alcance.map((x, i)=> [String(i + 1), x]), medio: true }, { k: 'legal', l: 'Requisito legal', t: 'select', op: ['No aplica', 'Aplica y se cumple', 'Aplica y NO se cumple'], medio: true },
+  { k: 'norma', l: 'Norma aplicable', ph: 'Ej: Decreto 1076 de 2015 (RESPEL)' }, { k: 'controles', l: 'Controles actuales y por implementar', t: 'textarea' }];
+const CLASES = ['Aprovechable (reciclable)', 'Orgánico', 'No aprovechable (ordinario)', 'Peligroso (RESPEL)', 'Especial (escombros, voluminosos)', 'RAEE (aparatos eléctricos y electrónicos)'];
+const C_RES = [{ k: 'fecha', l: 'Fecha de entrega o pesaje', t: 'date', req: true, medio: true }, { k: 'clase', l: 'Clase', t: 'select', op: CLASES, medio: true },
+  { k: 'corriente', l: 'Residuo', req: true, ph: 'Ej: trapos y guantes contaminados con hidrocarburos' }, { k: 'cantidad', l: 'Cantidad', t: 'number', req: true, medio: true },
+  { k: 'unidad', l: 'Unidad', t: 'select', op: ['kg', 'L', 'm³', 'unidades'], medio: true }, { k: 'gestor', l: 'Gestor o destino', ph: 'Empresa autorizada / reciclador' },
+  { k: 'certificado', l: 'Certificado de disposición o aprovechamiento N.º', medio: true }, { k: 'manifiesto', l: 'Manifiesto de transporte N.º (RESPEL)', medio: true }];
+const C_CON = [{ k: 'mes', l: 'Mes', t: 'month', req: true, medio: true }, { k: 'sede', l: 'Sede', medio: true },
+  { k: 'agua', l: 'Agua (m³)', t: 'number', medio: true }, { k: 'energia', l: 'Energía (kWh)', t: 'number', medio: true },
+  { k: 'combustible', l: 'Combustible (galones)', t: 'number', medio: true }, { k: 'papel', l: 'Papel (resmas)', t: 'number', medio: true },
+  { k: 'trabajadores', l: 'Trabajadores en el mes (para el indicador por persona)', t: 'number' }];
+let rows = [], tab = 'aspectos';
+const de = (t)=> rows.filter((x)=> x.tipo === t);
+async function cargar(){
+  if (UI.avisoServidor($('avisoSrv'))) { $('panel').innerHTML = ''; return; }
+  const r = await SGSST.listar('aspecto,residuo,consumo');
+  UI.avisoCopia($('avisoCopia'), r);
+  rows = r.rows; pintar();
+}
+const mesMas = (m, n)=> { const p = m.split('-').map(Number); const d = new Date(Date.UTC(p[0], p[1] - 1 + n, 1)); return d.toISOString().slice(0, 7); };
+/** Kilos de RESPEL por mes (los litros se cuentan como kg: densidad ~1) y categoría del generador
+    (Decreto 1076 de 2015: media móvil de los últimos 6 meses; ≥10 kg pequeño, ≥100 mediano, ≥1.000 grande). */
+function respel(){
+  const h = UI.hoy().slice(0, 7), meses = [...Array(6)].map((_, i)=> mesMas(h, -i - 1));
+  const kg = (m)=> de('residuo').filter((x)=> /Peligroso/.test(x.estado) && String(x.resumen.mes || String(x.fecha).slice(0, 7)) === m && /kg|L/.test(x.resumen.unidad || 'kg')).reduce((a, x)=> a + (Number(x.resumen.cantidad) || 0), 0);
+  const media = meses.reduce((a, m)=> a + kg(m), 0) / 6;
+  const cat = media >= 1000 ? 'Gran generador' : media >= 100 ? 'Mediano generador' : media >= 10 ? 'Pequeño generador' : 'Menos de 10 kg/mes';
+  return { media, cat, registro: media >= 10 };
+}
+function pintar(){
+  const asp = de('aspecto'), sig = asp.filter((x)=> x.estado === 'SIGNIFICATIVO'), anio = UI.hoy().slice(0, 4), resA = de('residuo').filter((x)=> String(x.fecha).slice(0, 4) === anio);
+  const totalKg = resA.filter((x)=> (x.resumen.unidad || 'kg') === 'kg').reduce((a, x)=> a + (Number(x.resumen.cantidad) || 0), 0);
+  const aprov = resA.filter((x)=> /Aprovechable|Orgánico/.test(x.estado) && (x.resumen.unidad || 'kg') === 'kg').reduce((a, x)=> a + (Number(x.resumen.cantidad) || 0), 0);
+  const sinCert = resA.filter((x)=> /Peligroso|RAEE/.test(x.estado) && !x.resumen.certificado).length, rp = respel();
+  $('nAsp').textContent = asp.length; $('nRes').textContent = de('residuo').length; $('nCon').textContent = de('consumo').length;
+  $('kpis').innerHTML = '<div class="kpi ' + (asp.length ? '' : 'mal') + '"><div class="v">' + sig.length + ' / ' + asp.length + '</div><div class="n">aspectos significativos</div></div>' +
+    '<div class="kpi"><div class="v">' + (totalKg ? Math.round(aprov * 100 / totalKg) + '%' : '—') + '</div><div class="n">residuos aprovechados en ' + anio + '</div><div class="f">' + Math.round(totalKg).toLocaleString('es-CO') + ' kg en total</div></div>' +
+    '<div class="kpi ' + (rp.registro ? 'pronto' : 'ok') + '"><div class="v">' + rp.media.toLocaleString('es-CO', { maximumFractionDigits: 1 }) + ' kg</div><div class="n">RESPEL: media de 6 meses</div><div class="f">' + esc(rp.cat) + (rp.registro ? ' · debe estar inscrito como generador' : '') + '</div></div>' +
+    '<div class="kpi ' + (sinCert ? 'mal' : 'ok') + '"><div class="v">' + sinCert + '</div><div class="n">entregas de RESPEL o RAEE sin certificado</div></div>';
+  ({ aspectos: pintarAsp, residuos: pintarRes, consumos: pintarCon })[tab]($('panel'));
+}
+function item(x, titulo, sub, chip, clase){ return '<button type="button" class="item ' + (clase || '') + '" data-id="' + esc(x.id) + '"><div class="fila"><div><div class="t">' + titulo + '</div>' + (sub || []).filter(Boolean).map((s)=> '<div class="m">' + s + '</div>').join('') + (x.pendiente ? '<div class="m"><span class="pend">⏳ pendiente de enviar</span></div>' : '') + '</div>' + (chip ? '<span class="chip ' + (clase || '') + '">' + chip + '</span>' : '') + '</div></button>'; }
+function editar(tipo, titulo, campos, d, alistar){
+  Registros.editar({ titulo: (d.nuevo ? 'Nuevo: ' : '') + titulo, campos, datos: d,
+    borrar: d.nuevo ? null : async ()=> { const ok = await Registros.borrar(d.id, 'Borrado desde Ambiental'); if (ok) cargar(); return ok; },
+    alGuardar: async (v)=> { const e = alistar ? alistar(v) : null; if (typeof e === 'string') return e;
+      const r = await Registros.guardar(tipo, d.id, v, d.nuevo ? 0 : d.version); if (typeof r === 'string') return r;
+      if (tipo === 'aspecto' && v.significancia === 'SIGNIFICATIVO' && !d.accionId && !r.enCola && confirm('Aspecto significativo. ¿Crear una acción de control en el plan de acción?')) {
+        const resp = prompt('Responsable:', ''); if (resp) { const a = await UI.guardarAccion({ origen: 'Ambiental', origenRef: d.id, hallazgo: 'Aspecto significativo: ' + v.aspecto + ' → ' + v.impacto, accion: v.controles || 'Definir e implementar controles', responsable: resp, tipoAccion: 'Preventiva' });
+          if (a.ok) await SGSST.enviar({ action: 'parche', tipo: 'aspecto', id: d.id, campos: { accionId: a.id } }); }
+      }
+      cargar(); return true; } });
+}
+function abrirCon(panel, tipo, titulo, campos, alistar){ panel.querySelectorAll('[data-id]').forEach((b)=> b.addEventListener('click', async ()=> { const d = await Registros.abrir(b.dataset.id); if (d) editar(tipo, titulo, campos, d, alistar); })); }
+/* ── Aspectos e impactos ── */
+function valorar(v){
+  v.valor = (Number(v.frecuencia) || 1) * (Number(v.severidad) || 1) * (Number(v.alcance) || 1);
+  v.significancia = v.valor >= 12 || (v.condicion === 'Emergencia' && Number(v.severidad) === 3) || v.legal === 'Aplica y NO se cumple' ? 'SIGNIFICATIVO' : 'NO SIGNIFICATIVO';
+  if (v.tipoImpacto === 'Positivo') v.significancia = 'POSITIVO';
+  v.fechaRevision = UI.hoy();
+}
+function pintarAsp(panel){
+  const l = de('aspecto').sort((a, b)=> (Number(b.resumen.valor) || 0) - (Number(a.resumen.valor) || 0));
+  panel.innerHTML = '<p class="ayuda">Valoración de referencia: frecuencia × severidad × alcance (1 a 3 cada uno). Significativo con 12 o más, en emergencias de severidad alta, o si un requisito legal aplicable no se cumple. Ajústalo a tu procedimiento.</p>' +
+    (l.length ? l.map((x)=> { const c = x.estado === 'SIGNIFICATIVO' ? 'mal' : x.estado === 'POSITIVO' ? 'ok' : 'gris';
+      return item(x, esc(x.resumen.aspecto) + ' → ' + esc(x.resumen.impacto), [esc([x.resumen.proceso, x.resumen.actividad, x.resumen.condicion].filter(Boolean).join(' · ')), 'Valor ' + esc(x.resumen.valor) + (x.resumen.legal && x.resumen.legal !== 'No aplica' ? ' · legal: ' + esc(x.resumen.legal) : '')], esc(x.estado), c); }).join('') : '<div class="empty">Sin aspectos identificados.</div>') +
+    '<button type="button" class="btn amber" id="nAspB">+ Aspecto ambiental</button><button type="button" class="btn ghost" id="pAsp">🖨️ Matriz de aspectos e impactos (PDF)</button>';
+  abrirCon(panel, 'aspecto', 'Aspecto ambiental', C_ASP, valorar);
+  $('nAspB').addEventListener('click', ()=> editar('aspecto', 'Aspecto ambiental', C_ASP, { id: SGSST.nuevoId('ASP'), nuevo: true, condicion: 'Normal', tipoImpacto: 'Negativo', frecuencia: '2', severidad: '2', alcance: '1', legal: 'No aplica' }, valorar));
+  $('pAsp').addEventListener('click', ()=> UI.imprimir([UI.cabecera('SG-ASPECTOS-AMBIENTALES', 'MATRIZ DE ASPECTOS E IMPACTOS AMBIENTALES', 'Corte ' + UI.corta(UI.hoy())) +
+    '<table><tr><td class="l">Proceso / actividad</td><td class="l">Aspecto</td><td class="l">Impacto</td><td class="l">Condición</td><td class="l">F</td><td class="l">S</td><td class="l">A</td><td class="l">Valor</td><td class="l">Legal</td><td class="l">Significancia</td><td class="l">Controles</td></tr>' +
+    l.map((x)=> { const s = x.resumen; return '<tr><td>' + esc([s.proceso, s.actividad].filter(Boolean).join(' / ')) + '</td><td>' + esc(s.aspecto) + '</td><td>' + esc(s.impacto) + '</td><td>' + esc(s.condicion) + '</td><td>' + esc(s.frecuencia) + '</td><td>' + esc(s.severidad) + '</td><td>' + esc(s.alcance) + '</td><td>' + esc(s.valor) + '</td><td>' + esc(s.legal) + '</td><td>' + esc(x.estado) + '</td><td>' + esc(s.controles) + '</td></tr>'; }).join('') + '</table>'], true));
+}
+/* ── Residuos ── */
+function pintarRes(panel){
+  const l = de('residuo').sort((a, b)=> String(b.fecha).localeCompare(String(a.fecha))), rp = respel();
+  panel.innerHTML = '<div class="aviso info">RESPEL (residuos peligrosos): <b>' + esc(rp.cat) + '</b> según la media de los últimos 6 meses (' + rp.media.toLocaleString('es-CO', { maximumFractionDigits: 1 }) + ' kg/mes). Desde 10 kg/mes la empresa debe inscribirse como generadora ante la autoridad ambiental y tener su plan de gestión integral de RESPEL (Decreto 1076 de 2015). Verifica los rangos con la norma vigente.</div>' +
+    (l.length ? l.map((x)=> { const p = /Peligroso|RAEE/.test(x.estado), c = p && !x.resumen.certificado ? 'mal' : p ? 'pronto' : 'ok';
+      return item(x, esc(x.resumen.corriente), [esc(UI.corta(x.fecha)) + ' · ' + esc(x.resumen.cantidad) + ' ' + esc(x.resumen.unidad || 'kg') + (x.resumen.gestor ? ' · ' + esc(x.resumen.gestor) : ''), p ? (x.resumen.certificado ? 'Certificado ' + esc(x.resumen.certificado) : '<b style="color:var(--mal);">Sin certificado de disposición</b>') : ''], esc(String(x.estado).split(' (')[0]), c); }).join('') : '<div class="empty">Sin registros de residuos.</div>') +
+    '<button type="button" class="btn amber" id="nResB">+ Registrar residuos</button><button type="button" class="btn ghost" id="pRes">🖨️ Registro de generación de residuos (PDF)</button>';
+  const alistar = (v)=> { v.mes = String(v.fecha).slice(0, 7); v.corriente = String(v.corriente).trim(); };
+  abrirCon(panel, 'residuo', 'Residuos', C_RES, alistar);
+  $('nResB').addEventListener('click', ()=> editar('residuo', 'Residuos', C_RES, { id: SGSST.nuevoId('RES'), nuevo: true, fecha: UI.hoy(), clase: CLASES[0], unidad: 'kg' }, alistar));
+  $('pRes').addEventListener('click', ()=> { const anio = UI.hoy().slice(0, 4), meses = [...Array(12)].map((_, i)=> anio + '-' + String(i + 1).padStart(2, '0'));
+    const suma = (m, c)=> de('residuo').filter((x)=> x.resumen.mes === m && x.estado === c && (x.resumen.unidad || 'kg') === 'kg').reduce((a, x)=> a + (Number(x.resumen.cantidad) || 0), 0);
+    UI.imprimir([UI.cabecera('SG-RESIDUOS', 'REGISTRO DE GENERACIÓN DE RESIDUOS ' + anio, 'RESPEL: ' + rp.cat) +
+      '<table><tr><td class="l">Clase</td>' + meses.map((m)=> '<td class="l">' + m.slice(5) + '</td>').join('') + '<td class="l">Total kg</td></tr>' +
+      CLASES.map((c)=> { const v = meses.map((m)=> suma(m, c)); return '<tr><td>' + esc(c) + '</td>' + v.map((x)=> '<td>' + (x ? x.toLocaleString('es-CO') : '') + '</td>').join('') + '<td><b>' + v.reduce((a, b)=> a + b, 0).toLocaleString('es-CO') + '</b></td></tr>'; }).join('') + '</table>' +
+      UI.seccion('ENTREGAS DE RESIDUOS PELIGROSOS Y RAEE', '<table><tr><td class="l">Fecha</td><td class="l">Residuo</td><td class="l">Cantidad</td><td class="l">Gestor</td><td class="l">Certificado</td><td class="l">Manifiesto</td></tr>' +
+        de('residuo').filter((x)=> /Peligroso|RAEE/.test(x.estado) && String(x.fecha).slice(0, 4) === anio).map((x)=> '<tr><td>' + esc(UI.corta(x.fecha)) + '</td><td>' + esc(x.resumen.corriente) + '</td><td>' + esc(x.resumen.cantidad + ' ' + (x.resumen.unidad || 'kg')) + '</td><td>' + esc(x.resumen.gestor || '') + '</td><td>' + esc(x.resumen.certificado || 'FALTA') + '</td><td>' + esc(x.resumen.manifiesto || '') + '</td></tr>').join('') + '</table>')], true); });
+}
+/* ── Consumos ── */
+function pintarCon(panel){
+  const l = de('consumo').sort((a, b)=> String(b.resumen.mes).localeCompare(String(a.resumen.mes)));
+  const ult = l.slice(0, 12).reverse();
+  const graf = (k, nombre, u)=> { const max = Math.max(1, ...ult.map((x)=> Number(x.resumen[k]) || 0)), prom = ult.length ? ult.reduce((a, x)=> a + (Number(x.resumen[k]) || 0), 0) / ult.length : 0;
+    return ult.some((x)=> Number(x.resumen[k])) ? '<div class="card"><h2>' + esc(nombre) + ' (' + esc(u) + ')</h2><div class="barras">' + ult.map((x)=> { const v = Number(x.resumen[k]) || 0; return '<div class="' + (v > prom * 1.15 ? 'mal' : '') + '" style="height:' + Math.round(v * 100 / max) + '%" title="' + esc(x.resumen.mes + ': ' + v) + '"></div>'; }).join('') + '</div>' +
+      '<div class="mesesb">' + ult.map((x)=> '<span>' + esc(String(x.resumen.mes).slice(5)) + '</span>').join('') + '</div><div class="ayuda">Promedio ' + prom.toLocaleString('es-CO', { maximumFractionDigits: 1 }) + ' ' + esc(u) + '/mes · en rojo, los meses 15 % por encima del promedio</div></div>' : ''; };
+  panel.innerHTML = graf('agua', 'Agua', 'm³') + graf('energia', 'Energía', 'kWh') + graf('combustible', 'Combustible', 'gal') +
+    (l.length ? l.map((x)=> item(x, esc(x.resumen.mes) + (x.resumen.sede ? ' · ' + esc(x.resumen.sede) : ''), [[['agua', 'm³'], ['energia', 'kWh'], ['combustible', 'gal'], ['papel', 'resmas']].filter((k)=> x.resumen[k[0]] !== '' && x.resumen[k[0]] != null).map((k)=> esc(x.resumen[k[0]]) + ' ' + k[1]).join(' · ')])).join('') : '<div class="empty">Sin consumos registrados.</div>') +
+    '<button type="button" class="btn amber" id="nConB">+ Consumo del mes</button>';
+  const alistar = (v)=> { v.fecha = v.mes + '-01'; if (de('consumo').some((x)=> x.resumen.mes === v.mes && UI.norm(x.resumen.sede) === UI.norm(v.sede) && x.id !== v.id)) return 'Ya hay consumos de ese mes y sede: ábrelos en la lista.'; };
+  abrirCon(panel, 'consumo', 'Consumos del mes', C_CON, alistar);
+  $('nConB').addEventListener('click', ()=> editar('consumo', 'Consumos del mes', C_CON, { id: SGSST.nuevoId('CNS'), nuevo: true, mes: mesMas(UI.hoy().slice(0, 7), -1) }, alistar));
+}
+$('tabs').addEventListener('click', (e)=>{ const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; document.querySelectorAll('#tabs button').forEach((x)=> x.classList.toggle('on', x === b)); pintar(); });
+window.addEventListener('outbox-enviado', ()=> cargar());
+cargar();
+</script>
+</body>
+</html>

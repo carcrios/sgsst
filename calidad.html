@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#151b24">
+<title>Gestión de la calidad · Portal SSTA</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="sgsst.css">
+<style>
+.dofa{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.dofa div{border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.4;min-height:70px;}
+.dofa h4{margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;}
+.dofa ul{margin:0;padding-left:16px;}
+.dofa .f{background:#e8f6ee;} .dofa .d{background:#fdecea;} .dofa .o{background:#e7f1fb;} .dofa .a{background:#fff6d9;}
+.tabla-m{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border-radius:10px;overflow:hidden;margin-bottom:10px;}
+.tabla-m th,.tabla-m td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top;}
+.tabla-m th{background:#f3f5f8;font-size:11.5px;color:var(--muted);}
+.barras{display:flex;align-items:flex-end;gap:3px;height:42px;margin-top:6px;}
+.barras span{flex:1;background:#7fb08f;border-radius:3px 3px 0 0;min-height:2px;} .barras span.mal{background:#d98c7f;}
+.criterio{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--line);}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="screen active" id="scrLista">
+  <div class="hdr">
+    <a class="back" href="index.html">← Volver al portal</a>
+    <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><div class="eyebrow">HSEQ · Calidad</div>
+    <h1>Gestión de la calidad</h1>
+    <p>ISO 9001: contexto, riesgos y oportunidades, objetivos, producto no conforme, PQRS y satisfacción del cliente</p></div></div>
+  </div>
+  <div id="avisoSrv"></div><div id="avisoCopia"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="tabs" id="tabs">
+    <button type="button" class="on" data-tab="contexto">Contexto</button>
+    <button type="button" data-tab="riesgos">Riesgos y oportunidades <span class="n" id="nRie">0</span></button>
+    <button type="button" data-tab="objetivos">Objetivos <span class="n" id="nObj">0</span></button>
+    <button type="button" data-tab="pnc">No conforme <span class="n" id="nPnc">0</span></button>
+    <button type="button" data-tab="pqrs">PQRS <span class="n" id="nPqr">0</span></button>
+    <button type="button" data-tab="satisfaccion">Satisfacción <span class="n" id="nEnc">0</span></button>
+  </div>
+  <div id="panel"><div class="empty">Cargando…</div></div>
+  <div class="version-portal">Portal SSTA · versión v103</div>
+</div>
+</div>
+<script src="empresa.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="sgsst-ui.js"></script>
+<script src="registros.js"></script>
+<script>
+OfflineBanner.init();
+OutboxBadge.init();
+if (typeof Outbox !== 'undefined') Outbox.flush();
+if (typeof UpdateManager !== 'undefined') UpdateManager.init();
+
+const $ = UI.$;
+const ID_CTX = 'CTX-CALIDAD';
+const DIAS_PQRS = Number(((typeof EMPRESA !== 'undefined' && EMPRESA.calidad) || {}).diasPQRS) || 15;   // plazo interno de respuesta (días hábiles)
+const ESCALA5 = [['5', '5 · Excelente'], ['4', '4 · Bueno'], ['3', '3 · Aceptable'], ['2', '2 · Malo'], ['1', '1 · Muy malo']];
+const CRITERIOS = [['calidad', 'Calidad del producto o servicio'], ['oportunidad', 'Cumplimiento y oportunidad'], ['atencion', 'Atención y comunicación'], ['precio', 'Relación calidad / precio']];
+/* Riesgos y oportunidades: probabilidad × impacto (1 a 5). Método de referencia: ajústalo a tu procedimiento. */
+const nivelRO = (p, i)=> { const n = (Number(p) || 1) * (Number(i) || 1); return { n, t: n >= 15 ? 'Alto' : n >= 6 ? 'Medio' : 'Bajo' }; };
+const C_RIE = [{ k: 'proceso', l: 'Proceso', req: true, medio: true }, { k: 'tipoRO', l: 'Tipo', t: 'select', op: ['Riesgo', 'Oportunidad'], medio: true },
+  { k: 'descripcion', l: 'Descripción', req: true, ph: 'Ej: Retraso de un proveedor crítico de materia prima' }, { k: 'causa', l: 'Causa o fuente', ph: 'Ej: un solo proveedor calificado' },
+  { k: 'probabilidad', l: 'Probabilidad (1 a 5)', t: 'select', op: ['1', '2', '3', '4', '5'], medio: true }, { k: 'impacto', l: 'Impacto (1 a 5)', t: 'select', op: ['1', '2', '3', '4', '5'], medio: true },
+  { k: 'tratamiento', l: 'Acción para abordarlo', t: 'textarea' }, { k: 'responsable', l: 'Responsable', t: 'persona', medio: true }, { k: 'fechaCompromiso', l: 'Fecha', t: 'date', medio: true },
+  { k: 'estado', l: 'Estado', t: 'select', op: ['ABIERTO', 'EN TRATAMIENTO', 'TRATADO'] }];
+const C_OBJ = [{ k: 'objetivo', l: 'Objetivo de calidad', req: true, ph: 'Ej: Entregar a tiempo los pedidos' }, { k: 'indicador', l: 'Indicador', req: true, medio: true, ph: 'Ej: Entregas a tiempo' },
+  { k: 'formula', l: 'Fórmula', medio: true, ph: 'Ej: entregas a tiempo / entregas totales × 100' }, { k: 'meta', l: 'Meta', t: 'number', req: true, medio: true }, { k: 'unidad', l: 'Unidad', medio: true, ph: '%' },
+  { k: 'sentido', l: 'Se cumple si el valor es', t: 'select', op: [['mayor', 'mayor o igual a la meta'], ['menor', 'menor o igual a la meta']], medio: true }, { k: 'frecuencia', l: 'Frecuencia', t: 'select', op: ['Mensual', 'Trimestral', 'Semestral', 'Anual'], medio: true },
+  { k: 'responsable', l: 'Responsable', t: 'persona' }, { k: 'estado', l: 'Estado', t: 'select', op: ['VIGENTE', 'INACTIVO'] }];
+const C_PNC = [{ k: 'fecha', l: 'Fecha', t: 'date', req: true, medio: true }, { k: 'detectadoEn', l: 'Dónde se detectó', t: 'select', op: ['Recepción', 'Proceso', 'Inspección final', 'Entrega', 'Cliente'], medio: true },
+  { k: 'producto', l: 'Producto o servicio', req: true, medio: true }, { k: 'cliente', l: 'Cliente (si aplica)', medio: true }, { k: 'descripcion', l: 'Qué no cumple', t: 'textarea', req: true },
+  { k: 'cantidad', l: 'Cantidad afectada', medio: true }, { k: 'costo', l: 'Costo estimado ($)', t: 'number', medio: true },
+  { k: 'tratamiento', l: 'Tratamiento', t: 'select', op: ['Corrección / reproceso', 'Reclasificación', 'Concesión del cliente', 'Rechazo / desecho', 'Devolución al proveedor', 'Reposición al cliente'], medio: true }, { k: 'responsable', l: 'Responsable', t: 'persona', medio: true },
+  { k: 'requiereAC', l: '¿Requiere acción correctiva (análisis de causa)?', t: 'select', op: ['No', 'Sí'], medio: true }, { k: 'estado', l: 'Estado', t: 'select', op: ['ABIERTO', 'CERRADO'], medio: true }];
+const C_PQR = [{ k: 'fecha', l: 'Fecha de recibo', t: 'date', req: true, medio: true }, { k: 'tipoPQRS', l: 'Tipo', t: 'select', op: ['Petición', 'Queja', 'Reclamo', 'Sugerencia', 'Felicitación'], medio: true },
+  { k: 'cliente', l: 'Cliente', req: true, medio: true }, { k: 'canal', l: 'Canal', t: 'select', op: ['Correo', 'Teléfono', 'WhatsApp', 'Presencial', 'Página web', 'Encuesta'], medio: true },
+  { k: 'descripcion', l: 'Qué dice el cliente', t: 'textarea', req: true }, { k: 'responsable', l: 'Responsable de responder', t: 'persona', medio: true }, { k: 'fechaLimite', l: 'Responder a más tardar', t: 'date', medio: true },
+  { k: 'respuesta', l: 'Respuesta dada', t: 'textarea' }, { k: 'fechaRespuesta', l: 'Fecha de la respuesta', t: 'date', medio: true }, { k: 'procede', l: '¿Procede? (queja o reclamo justificado)', t: 'select', op: ['Por analizar', 'Sí', 'No'], medio: true },
+  { k: 'estado', l: 'Estado', t: 'select', op: ['ABIERTA', 'RESPONDIDA', 'CERRADA'] }];
+let rows = [], tab = 'contexto', ctxDoc = null;
+const de = (t)=> rows.filter((x)=> x.tipo === t);
+const hace12 = ()=> Festivos.sumarMeses(UI.hoy(), -12);
+async function cargar(){
+  if (UI.avisoServidor($('avisoSrv'))) { $('panel').innerHTML = ''; return; }
+  const r = await SGSST.listar('contextocal,riesgocal,objcal,pnc,pqrs,encuesta');
+  UI.avisoCopia($('avisoCopia'), r);
+  rows = r.rows;
+  ctxDoc = de('contextocal').length ? await SGSST.doc(ID_CTX) : null;
+  pintar();
+}
+/* ── Indicadores del módulo ── */
+function satisfaccion(lista){
+  const l = lista || de('encuesta').filter((x)=> String(x.resumen.fecha) >= hace12());
+  if (!l.length) return null;
+  const conProm = l.filter((x)=> Number(x.resumen.promedio) > 0);   // una encuesta solo con NPS no baja el promedio
+  const prom = conProm.length ? conProm.reduce((a, x)=> a + Number(x.resumen.promedio), 0) / conProm.length : 0;
+  const conNps = l.filter((x)=> x.resumen.nps !== '' && x.resumen.nps != null);
+  const nps = conNps.length ? Math.round((conNps.filter((x)=> Number(x.resumen.nps) >= 9).length - conNps.filter((x)=> Number(x.resumen.nps) <= 6).length) * 100 / conNps.length) : null;
+  const crit = {}; CRITERIOS.forEach(([k])=> { const v = l.map((x)=> Number(x.resumen[k])).filter((n)=> n > 0); crit[k] = v.length ? v.reduce((a, b)=> a + b, 0) / v.length : null; });
+  return { n: l.length, pct: conProm.length ? Math.round(prom * 20) : null, nps, crit };
+}
+function pintar(){
+  const h = UI.hoy(), pq = de('pqrs'), abiertas = pq.filter((x)=> x.estado === 'ABIERTA'), venc = abiertas.filter((x)=> x.resumen.fechaLimite && x.resumen.fechaLimite < h);
+  const pncMes = de('pnc').filter((x)=> String(x.resumen.fecha).slice(0, 7) === h.slice(0, 7)).length, obj = de('objcal').filter((x)=> x.resumen.estado !== 'INACTIVO'), objOk = obj.filter((x)=> x.resumen.cumple === 'Sí').length;
+  const altos = de('riesgocal').filter((x)=> x.resumen.nivel === 'Alto' && x.estado !== 'TRATADO').length, sat = satisfaccion();
+  $('nRie').textContent = de('riesgocal').length; $('nObj').textContent = obj.length; $('nPnc').textContent = de('pnc').filter((x)=> x.estado !== 'CERRADO').length; $('nPqr').textContent = abiertas.length; $('nEnc').textContent = de('encuesta').length;
+  $('kpis').innerHTML = '<div class="kpi ' + (sat && sat.pct != null ? (sat.pct >= 85 ? 'ok' : sat.pct >= 70 ? '' : 'mal') : '') + '"><div class="v">' + (sat && sat.pct != null ? sat.pct + '%' : '—') + '</div><div class="n">satisfacción del cliente (12 meses)</div><div class="f">' + (sat ? sat.n + ' encuesta(s)' + (sat.nps != null ? ' · NPS ' + sat.nps : '') : 'sin encuestas') + '</div></div>' +
+    '<div class="kpi ' + (venc.length ? 'mal' : abiertas.length ? 'pronto' : 'ok') + '"><div class="v">' + abiertas.length + '</div><div class="n">PQRS abiertas</div><div class="f">' + venc.length + ' vencida(s) · plazo ' + DIAS_PQRS + ' días hábiles</div></div>' +
+    '<div class="kpi ' + (pncMes ? 'pronto' : 'ok') + '"><div class="v">' + pncMes + '</div><div class="n">producto no conforme este mes</div></div>' +
+    '<div class="kpi ' + (obj.length && objOk === obj.length ? 'ok' : obj.length ? '' : 'mal') + '"><div class="v">' + objOk + ' / ' + obj.length + '</div><div class="n">objetivos de calidad cumplidos</div><div class="f">' + altos + ' riesgo(s) alto(s) sin tratar</div></div>';
+  ({ contexto: pintarCtx, riesgos: pintarRie, objetivos: pintarObj, pnc: pintarPnc, pqrs: pintarPqr, satisfaccion: pintarSat })[tab]($('panel'));
+}
+function item(x, titulo, subs, chip, clase){ return '<button type="button" class="item ' + (clase || '') + '" data-id="' + esc(x.id) + '"><div class="fila"><div><div class="t">' + titulo + '</div>' + (subs || []).filter(Boolean).map((s)=> '<div class="m">' + s + '</div>').join('') + (x.pendiente ? '<div class="m"><span class="pend">⏳ pendiente de enviar</span></div>' : '') + '</div>' + (chip ? '<span class="chip ' + (clase || '') + '">' + chip + '</span>' : '') + '</div></button>'; }
+async function accionDe(tipo, id, a){
+  if (!confirm('¿Crear la acción en el plan de acción?')) return;
+  const resp = prompt('Responsable:', a.responsable || ''); if (!resp) return;
+  const r = await UI.guardarAccion(Object.assign({ origen: 'Calidad', origenRef: id, responsable: resp }, a));
+  if (r.ok) await SGSST.enviar({ action: 'parche', tipo, id, campos: { accionId: r.id } });
+}
+function editar(tipo, titulo, campos, d, alistar, despues){
+  Registros.editar({ titulo: (d.nuevo ? 'Nuevo: ' : '') + titulo, campos, datos: d,
+    borrar: d.nuevo ? null : async ()=> { const ok = await Registros.borrar(d.id, 'Borrado desde Calidad'); if (ok) cargar(); return ok; },
+    alGuardar: async (v)=> { const e = alistar ? alistar(v, d) : null; if (typeof e === 'string') return e;
+      const r = await Registros.guardar(tipo, d.id, v, d.nuevo ? 0 : d.version); if (typeof r === 'string') return r;
+      if (despues && !r.enCola) await despues(v, d);
+      cargar(); return true; } });
+}
+const abrirCon = (panel, tipo, titulo, campos, alistar, despues)=> panel.querySelectorAll('[data-id]').forEach((b)=> b.addEventListener('click', async ()=> { const d = await Registros.abrir(b.dataset.id); if (d) editar(tipo, titulo, campos, d, alistar, despues); }));
+
+/* ── Contexto (4.1, 4.2, 4.3) ── */
+const lineas = (t)=> String(t || '').split('\n').map((x)=> x.trim()).filter(Boolean);
+function pintarCtx(panel){
+  const c = ctxDoc || {}, lis = (l)=> (l || []).length ? '<ul>' + l.map((x)=> '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<i style="color:var(--muted);">—</i>';
+  panel.innerHTML = '<p class="ayuda">Cuestiones internas y externas (DOFA), partes interesadas y sus requisitos, y el alcance del sistema de gestión de la calidad (ISO 9001, 4.1 a 4.3). Se revisan por lo menos una vez al año.</p>' +
+    (c.alcance ? '<div class="card"><h2>Alcance</h2><div class="texto-largo">' + esc(c.alcance) + '</div></div>' : '') +
+    '<div class="dofa"><div class="f"><h4>Fortalezas</h4>' + lis(c.fortalezas) + '</div><div class="d"><h4>Debilidades</h4>' + lis(c.debilidades) + '</div><div class="o"><h4>Oportunidades</h4>' + lis(c.oportunidades) + '</div><div class="a"><h4>Amenazas</h4>' + lis(c.amenazas) + '</div></div>' +
+    '<div class="card"><h2>Partes interesadas</h2>' + ((c.partes || []).length ? '<table class="tabla-m"><tr><th>Parte</th><th>Necesidades y expectativas</th><th>Seguimiento</th></tr>' + c.partes.map((p)=> '<tr><td>' + esc(p.parte) + '</td><td>' + esc(p.necesidades) + '</td><td>' + esc(p.seguimiento) + '</td></tr>').join('') + '</table>' : '<div class="empty">Sin partes interesadas.</div>') + '</div>' +
+    (c.fechaRevision ? '<div class="m" style="font-size:12.5px;margin-bottom:8px;">Revisado el ' + esc(UI.corta(c.fechaRevision)) + (c.responsable ? ' por ' + esc(c.responsable) : '') + ' · próxima revisión ' + esc(UI.corta(c.proximaRevision)) + '</div>' : '') +
+    '<button type="button" class="btn amber" id="bCtx">✏️ ' + (ctxDoc ? 'Actualizar el contexto' : 'Definir el contexto') + '</button><button type="button" class="btn ghost" id="pCtx">🖨️ Contexto de la organización (PDF)</button>';
+  $('bCtx').addEventListener('click', editarCtx);
+  $('pCtx').addEventListener('click', ()=> { if (!ctxDoc) { UI.toast('Primero define el contexto.'); return; } const t = (l)=> '<ul style="margin:2px 0;padding-left:14px;">' + (l || []).map((x)=> '<li>' + esc(x) + '</li>').join('') + '</ul>';
+    UI.imprimir([UI.cabecera('SG-CONTEXTO', 'CONTEXTO DE LA ORGANIZACIÓN (ISO 9001, 4.1 A 4.3)', 'Revisado el ' + UI.corta(c.fechaRevision)) + UI.seccion('ALCANCE', '<table><tr><td>' + esc(c.alcance || '') + '</td></tr></table>') +
+      UI.seccion('ANÁLISIS DOFA', '<table><tr><th>Fortalezas</th><th>Debilidades</th></tr><tr><td>' + t(c.fortalezas) + '</td><td>' + t(c.debilidades) + '</td></tr><tr><th>Oportunidades</th><th>Amenazas</th></tr><tr><td>' + t(c.oportunidades) + '</td><td>' + t(c.amenazas) + '</td></tr></table>') +
+      UI.seccion('PARTES INTERESADAS', '<table><tr><th>Parte interesada</th><th>Necesidades y expectativas</th><th>Seguimiento</th></tr>' + (c.partes || []).map((p)=> '<tr><td>' + esc(p.parte) + '</td><td>' + esc(p.necesidades) + '</td><td>' + esc(p.seguimiento) + '</td></tr>').join('') + '</table>')]); });
+}
+async function editarCtx(){
+  const d = ctxDoc ? await Registros.abrir(ID_CTX) : { id: ID_CTX, nuevo: true, fechaRevision: UI.hoy() };
+  if (!d) return;
+  const datos = Object.assign({}, d, { fortalezasT: (d.fortalezas || []).join('\n'), debilidadesT: (d.debilidades || []).join('\n'), oportunidadesT: (d.oportunidades || []).join('\n'), amenazasT: (d.amenazas || []).join('\n'),
+    partesT: (d.partes || []).map((p)=> [p.parte, p.necesidades, p.seguimiento].join(' | ')).join('\n') });
+  const campos = [{ k: 'alcance', l: 'Alcance del sistema de gestión de la calidad', t: 'textarea', ph: 'Productos o servicios, sedes y requisitos que no aplican (con su justificación)' },
+    { k: 'fortalezasT', l: 'Fortalezas (una por línea)', t: 'textarea' }, { k: 'debilidadesT', l: 'Debilidades (una por línea)', t: 'textarea' },
+    { k: 'oportunidadesT', l: 'Oportunidades (una por línea)', t: 'textarea' }, { k: 'amenazasT', l: 'Amenazas (una por línea)', t: 'textarea' },
+    { k: 'partesT', l: 'Partes interesadas: parte | necesidades | seguimiento (una por línea)', t: 'textarea', ph: 'Clientes | producto a tiempo y conforme | encuesta de satisfacción y PQRS' },
+    { k: 'responsable', l: 'Responsable', t: 'persona', medio: true }, { k: 'fechaRevision', l: 'Fecha de revisión', t: 'date', medio: true }];
+  Registros.editar({ titulo: 'Contexto de la organización', campos, datos,
+    alGuardar: async (v)=> { const doc = { alcance: v.alcance, fortalezas: lineas(v.fortalezasT), debilidades: lineas(v.debilidadesT), oportunidades: lineas(v.oportunidadesT), amenazas: lineas(v.amenazasT),
+        partes: lineas(v.partesT).map((l)=> { const p = l.split('|').map((x)=> x.trim()); return { parte: p[0] || '', necesidades: p[1] || '', seguimiento: p[2] || '' }; }),
+        responsable: v.responsable, fechaRevision: v.fechaRevision || UI.hoy(), proximaRevision: Festivos.sumarMeses(v.fechaRevision || UI.hoy(), 12) };
+      const r = await Registros.guardar('contextocal', ID_CTX, doc, d.nuevo ? 0 : d.version); if (typeof r === 'string') return r; await cargar(); return true; } });
+}
+/* ── Riesgos y oportunidades (6.1) ── */
+function pintarRie(panel){
+  const l = de('riesgocal').sort((a, b)=> (a.estado === 'TRATADO') - (b.estado === 'TRATADO') || (Number(b.resumen.probabilidad) * Number(b.resumen.impacto)) - (Number(a.resumen.probabilidad) * Number(a.resumen.impacto)));
+  panel.innerHTML = '<p class="ayuda">Valoración de referencia: probabilidad × impacto (1 a 5). Alto: 15 o más · medio: 6 a 14 · bajo: hasta 5. Los riesgos altos van al plan de acción.</p>' +
+    (l.length ? l.map((x)=> { const s = x.resumen, c = x.estado === 'TRATADO' ? 'gris' : s.tipoRO === 'Oportunidad' ? 'ok' : s.nivel === 'Alto' ? 'mal' : s.nivel === 'Medio' ? 'pronto' : 'ok';
+      return item(x, (s.tipoRO === 'Oportunidad' ? '🌱 ' : '⚠️ ') + esc(s.descripcion), [esc([s.proceso, 'P' + s.probabilidad + ' × I' + s.impacto + ' = ' + (Number(s.probabilidad) * Number(s.impacto))].join(' · ')), s.tratamiento ? 'Acción: ' + esc(s.tratamiento) : ''], esc(x.estado === 'TRATADO' ? 'Tratado' : s.nivel || ''), c); }).join('') : '<div class="empty">Sin riesgos ni oportunidades identificados.</div>') +
+    '<button type="button" class="btn amber" id="nRieB">+ Riesgo u oportunidad</button><button type="button" class="btn ghost" id="pRie">🖨️ Matriz de riesgos y oportunidades (PDF)</button>';
+  const alistar = (v)=> { const n = nivelRO(v.probabilidad, v.impacto); v.nivel = n.t; v.fechaIdentificacion = v.fechaIdentificacion || UI.hoy(); };
+  const despues = async (v, d)=> { if (v.tipoRO === 'Riesgo' && v.nivel === 'Alto' && !d.accionId && v.estado !== 'TRATADO') await accionDe('riesgocal', d.id, { hallazgo: 'Riesgo alto (' + v.proceso + '): ' + v.descripcion, accion: v.tratamiento || 'Definir e implementar el tratamiento del riesgo', responsable: v.responsable, fechaCompromiso: v.fechaCompromiso, prioridad: 'Alta', tipoAccion: 'Preventiva' }); };
+  abrirCon(panel, 'riesgocal', 'Riesgo u oportunidad', C_RIE, alistar, despues);
+  $('nRieB').addEventListener('click', ()=> editar('riesgocal', 'Riesgo u oportunidad', C_RIE, { id: SGSST.nuevoId('RIC'), nuevo: true, tipoRO: 'Riesgo', probabilidad: '3', impacto: '3', estado: 'ABIERTO' }, alistar, despues));
+  $('pRie').addEventListener('click', ()=> UI.imprimir([UI.cabecera('SG-RIESGOS-CALIDAD', 'MATRIZ DE RIESGOS Y OPORTUNIDADES (ISO 9001, 6.1)', 'Corte ' + UI.corta(UI.hoy())) +
+    '<table><tr><th>Proceso</th><th>Tipo</th><th>Descripción</th><th>Causa</th><th>P</th><th>I</th><th>Nivel</th><th>Acción</th><th>Responsable</th><th>Fecha</th><th>Estado</th></tr>' +
+    l.map((x)=> { const s = x.resumen; return '<tr><td>' + esc(s.proceso) + '</td><td>' + esc(s.tipoRO) + '</td><td>' + esc(s.descripcion) + '</td><td>' + esc(s.causa || '') + '</td><td class="a">' + esc(s.probabilidad) + '</td><td class="a">' + esc(s.impacto) + '</td><td class="a" style="background:' + (s.nivel === 'Alto' ? '#f6d4cf' : s.nivel === 'Medio' ? '#fbecc0' : '#d5efdd') + ';">' + esc(s.nivel) + '</td><td>' + esc(s.tratamiento || '') + '</td><td>' + esc(s.responsable || '') + '</td><td>' + esc(UI.corta(s.fechaCompromiso)) + '</td><td>' + esc(x.estado) + '</td></tr>'; }).join('') + '</table>'], true));
+}
+/* ── Objetivos de calidad (6.2) ── */
+const cumpleObj = (s, v)=> v === '' || v == null ? '' : (s.sentido === 'menor' ? Number(v) <= Number(s.meta) : Number(v) >= Number(s.meta)) ? 'Sí' : 'No';
+function pintarObj(panel){
+  const l = de('objcal');
+  panel.innerHTML = '<p class="ayuda">Objetivos medibles y coherentes con la política de calidad, con su indicador, meta y frecuencia. Cada medición queda guardada y se compara con la meta.</p>' +
+    (l.length ? l.map((x)=> { const s = x.resumen, c = x.estado === 'INACTIVO' ? 'gris' : s.cumple === 'Sí' ? 'ok' : s.cumple === 'No' ? 'mal' : 'pronto';
+      return '<div class="item ' + c + '"><div class="fila"><div><div class="t">' + esc(s.objetivo) + '</div><div class="m">' + esc(s.indicador) + ' · meta ' + (s.sentido === 'menor' ? '≤ ' : '≥ ') + esc(s.meta) + esc(s.unidad || '') + ' · ' + esc(s.frecuencia || '') + '</div>' +
+        '<div class="m">' + (s.ultimoPeriodo ? 'Último: <b>' + esc(s.ultimoValor) + esc(s.unidad || '') + '</b> (' + esc(s.ultimoPeriodo) + ')' : 'Sin mediciones') + (s.responsable ? ' · ' + esc(s.responsable) : '') + '</div><div class="barras" data-barras="' + esc(x.id) + '"></div></div>' +
+        '<span class="chip ' + c + '">' + (x.estado === 'INACTIVO' ? 'Inactivo' : s.cumple === 'Sí' ? 'Cumple' : s.cumple === 'No' ? 'No cumple' : 'Sin medir') + '</span></div>' +
+        '<div class="acc" style="display:flex;gap:6px;margin-top:8px;"><button type="button" class="btn-mini" data-medir="' + esc(x.id) + '">+ Medición</button><button type="button" class="btn-mini" style="background:#5b6472;" data-edobj="' + esc(x.id) + '">✏️ Editar</button></div></div>'; }).join('') : '<div class="empty">Sin objetivos de calidad.</div>') +
+    '<button type="button" class="btn amber" id="nObjB">+ Objetivo de calidad</button><button type="button" class="btn ghost" id="pObj">🖨️ Objetivos e indicadores (PDF)</button>';
+  // Barras de las últimas mediciones (del documento completo).
+  l.forEach(async (x)=> { const d = await SGSST.doc(x.id); const el = panel.querySelector('[data-barras="' + x.id + '"]'); if (!d || !el) return; const m = (d.mediciones || []).slice(-12);
+    if (!m.length) return; const max = Math.max(Number(d.meta) || 0, ...m.map((y)=> Number(y.valor) || 0)) || 1;
+    el.innerHTML = m.map((y)=> '<span class="' + (cumpleObj(d, y.valor) === 'No' ? 'mal' : '') + '" style="height:' + Math.round((Number(y.valor) || 0) * 100 / max) + '%" title="' + esc(y.periodo + ': ' + y.valor) + '"></span>').join(''); });
+  panel.querySelectorAll('[data-edobj]').forEach((b)=> b.addEventListener('click', async ()=> { const d = await Registros.abrir(b.dataset.edobj); if (d) editar('objcal', 'Objetivo de calidad', C_OBJ, d, (v)=> { v.cumple = cumpleObj(v, v.ultimoValor); }); }));
+  panel.querySelectorAll('[data-medir]').forEach((b)=> b.addEventListener('click', ()=> medir(l.find((x)=> x.id === b.dataset.medir))));
+  $('nObjB').addEventListener('click', ()=> editar('objcal', 'Objetivo de calidad', C_OBJ, { id: SGSST.nuevoId('OBC'), nuevo: true, sentido: 'mayor', unidad: '%', frecuencia: 'Mensual', estado: 'VIGENTE' }));
+  $('pObj').addEventListener('click', async ()=> { const docs = (await Promise.all(l.map((x)=> SGSST.doc(x.id)))).filter(Boolean);
+    UI.imprimir([UI.cabecera('SG-OBJETIVOS-CALIDAD', 'OBJETIVOS E INDICADORES DE CALIDAD (ISO 9001, 6.2)', 'Corte ' + UI.corta(UI.hoy())) +
+      '<table><tr><th>Objetivo</th><th>Indicador</th><th>Fórmula</th><th>Meta</th><th>Frecuencia</th><th>Responsable</th><th>Mediciones (periodo: valor)</th><th>Estado</th></tr>' +
+      docs.map((d)=> '<tr><td>' + esc(d.objetivo) + '</td><td>' + esc(d.indicador) + '</td><td>' + esc(d.formula || '') + '</td><td class="a">' + (d.sentido === 'menor' ? '≤ ' : '≥ ') + esc(d.meta) + esc(d.unidad || '') + '</td><td>' + esc(d.frecuencia || '') + '</td><td>' + esc(d.responsable || '') + '</td><td>' +
+        (d.mediciones || []).slice(-12).map((m)=> esc(m.periodo) + ': <b' + (cumpleObj(d, m.valor) === 'No' ? ' style="color:#9b2c1f;"' : '') + '>' + esc(m.valor) + '</b>').join(' · ') + '</td><td>' + esc(cumpleObj(d, d.ultimoValor) === 'Sí' ? 'Cumple' : cumpleObj(d, d.ultimoValor) === 'No' ? 'No cumple' : 'Sin medir') + '</td></tr>').join('') + '</table>'], true); });
+}
+function medir(x){
+  const s = x.resumen, m = UI.modal('<h3>Medición · ' + esc(s.indicador) + '</h3><p class="ayuda">Meta ' + (s.sentido === 'menor' ? '≤ ' : '≥ ') + esc(s.meta) + esc(s.unidad || '') + (s.formula ? ' · ' + esc(s.formula) : '') + '</p>' +
+    '<div class="grid2"><div class="field"><label>Periodo</label><input type="month" id="mP" value="' + Festivos.sumarMeses(UI.hoy().slice(0, 8) + '01', -1).slice(0, 7) + '"></div><div class="field"><label>Valor</label><input type="number" step="any" inputmode="decimal" id="mV"></div></div>' +
+    '<div class="field"><label>Análisis (si no cumple: por qué y qué se hará)</label><textarea id="mA"></textarea></div>' +
+    '<button type="button" class="btn amber" id="mOk">Guardar</button><button type="button" class="btn ghost" data-cerrar>Cancelar</button><div class="status-msg" id="mMsg"></div>', true);
+  m.el.querySelector('#mOk').addEventListener('click', async ()=> {
+    const p = m.el.querySelector('#mP').value, v = m.el.querySelector('#mV').value, a = m.el.querySelector('#mA').value.trim();
+    if (!p || v === '') { m.el.querySelector('#mMsg').textContent = 'Faltan el periodo y el valor.'; return; }
+    const cumple = cumpleObj(s, Number(v)), nuevo = !s.ultimoPeriodo || p >= s.ultimoPeriodo;
+    const campos = nuevo ? { ultimoValor: Number(v), ultimoPeriodo: p, cumple } : {};
+    const med = { uid: x.id + ':' + p, periodo: p, valor: Number(v), analisis: a, fecha: UI.hoy() };
+    // Si ese periodo ya se midió, se corrige el valor (la lista "agregar" no repite el mismo periodo).
+    const d = await SGSST.doc(x.id), ant = ((d && d.mediciones) || []).find((z)=> z && z.periodo === p);
+    let cuerpo = { action: 'parche', tipo: 'objcal', id: x.id, campos, agregar: { mediciones: [med] } };
+    if (ant) {
+      if (!confirm(p + ' ya tiene una medición (' + ant.valor + '). ¿Reemplazarla por ' + v + '?')) return;
+      campos.mediciones = d.mediciones.map((z)=> z && z.periodo === p ? med : z); delete cuerpo.agregar;
+    }
+    const r = await SGSST.enviar(cuerpo);
+    if (!r.ok) { m.el.querySelector('#mMsg').textContent = 'No se guardó: ' + (r.error || ''); return; }
+    m.cerrar();
+    if (cumple === 'No' && confirm('No se cumplió la meta. ¿Crear una acción en el plan de acción?')) await accionDe('objcal', x.id, { hallazgo: 'Objetivo de calidad no cumplido (' + p + '): ' + s.indicador + ' = ' + v + ' (meta ' + s.meta + ')', accion: a || 'Analizar la causa y definir acciones para cumplir la meta', tipoAccion: 'Correctiva', responsable: s.responsable });
+    cargar();
+  });
+}
+/* ── Producto o servicio no conforme (8.7) ── */
+function pintarPnc(panel){
+  const l = de('pnc').sort((a, b)=> (a.estado === 'CERRADO') - (b.estado === 'CERRADO') || String(b.resumen.fecha).localeCompare(String(a.resumen.fecha)));
+  panel.innerHTML = '<p class="ayuda">Lo que no cumple los requisitos se identifica y se controla para que no llegue al cliente (o se trata si ya llegó): corrección, concesión, rechazo… Si se repite o es grave, va con acción correctiva.</p>' +
+    (l.length ? l.map((x)=> { const s = x.resumen, c = x.estado === 'CERRADO' ? 'ok' : 'pronto';
+      return item(x, esc(s.producto) + (s.cliente ? ' · ' + esc(s.cliente) : ''), [esc(UI.corta(s.fecha)) + ' · ' + esc(s.detectadoEn || '') + (s.cantidad ? ' · ' + esc(s.cantidad) : '') + (s.costo ? ' · $' + Number(s.costo).toLocaleString('es-CO') : ''), esc(s.descripcion), s.tratamiento ? 'Tratamiento: ' + esc(s.tratamiento) : ''], x.estado === 'CERRADO' ? 'Cerrado' : 'Abierto', c); }).join('') : '<div class="empty">Sin producto no conforme registrado.</div>') +
+    '<button type="button" class="btn amber" id="nPncB">+ Producto o servicio no conforme</button><button type="button" class="btn ghost" id="pPnc">🖨️ Registro de producto no conforme (PDF)</button>';
+  const alistar = (v)=> { v.fechaCierre = v.estado === 'CERRADO' ? (v.fechaCierre || UI.hoy()) : ''; };
+  const despues = async (v, d)=> { if (v.requiereAC === 'Sí' && !d.accionId) await accionDe('pnc', d.id, { hallazgo: 'Producto no conforme: ' + v.producto + ' — ' + v.descripcion, accion: 'Analizar la causa raíz y eliminarla', tipoAccion: 'Correctiva', responsable: v.responsable, prioridad: 'Alta' }); };
+  abrirCon(panel, 'pnc', 'Producto o servicio no conforme', C_PNC, alistar, despues);
+  $('nPncB').addEventListener('click', ()=> editar('pnc', 'Producto o servicio no conforme', C_PNC, { id: SGSST.nuevoId('PNC'), nuevo: true, fecha: UI.hoy(), detectadoEn: 'Proceso', tratamiento: 'Corrección / reproceso', requiereAC: 'No', estado: 'ABIERTO' }, alistar, despues));
+  $('pPnc').addEventListener('click', ()=> UI.imprimir([UI.cabecera('SG-PNC', 'REGISTRO DE PRODUCTO O SERVICIO NO CONFORME (ISO 9001, 8.7)', 'Corte ' + UI.corta(UI.hoy())) +
+    '<table><tr><th>Fecha</th><th>Producto / servicio</th><th>Cliente</th><th>Detectado en</th><th>Descripción</th><th>Cantidad</th><th>Tratamiento</th><th>Costo</th><th>Responsable</th><th>Acción</th><th>Estado</th></tr>' +
+    l.map((x)=> { const s = x.resumen; return '<tr><td>' + esc(UI.corta(s.fecha)) + '</td><td>' + esc(s.producto) + '</td><td>' + esc(s.cliente || '') + '</td><td>' + esc(s.detectadoEn || '') + '</td><td>' + esc(s.descripcion) + '</td><td>' + esc(s.cantidad || '') + '</td><td>' + esc(s.tratamiento || '') + '</td><td>' + (s.costo ? '$' + Number(s.costo).toLocaleString('es-CO') : '') + '</td><td>' + esc(s.responsable || '') + '</td><td>' + esc(s.accionId || (s.requiereAC === 'Sí' ? 'Sí' : '')) + '</td><td>' + esc(x.estado) + '</td></tr>'; }).join('') + '</table>'], true));
+}
+/* ── PQRS (8.2.1 y 9.1.2) ── */
+function pintarPqr(panel){
+  const h = UI.hoy(), l = de('pqrs').sort((a, b)=> (a.estado !== 'ABIERTA') - (b.estado !== 'ABIERTA') || String(a.resumen.fechaLimite).localeCompare(String(b.resumen.fechaLimite)));
+  const tiempo = l.filter((x)=> x.resumen.fechaRespuesta), aTiempo = tiempo.filter((x)=> !x.resumen.fechaLimite || x.resumen.fechaRespuesta <= x.resumen.fechaLimite).length;
+  panel.innerHTML = '<p class="ayuda">Peticiones, quejas, reclamos, sugerencias y felicitaciones de los clientes. Plazo interno de respuesta: ' + DIAS_PQRS + ' días hábiles (se cambia en empresa.js → calidad.diasPQRS). ' + (tiempo.length ? 'Respondidas a tiempo: <b>' + Math.round(aTiempo * 100 / tiempo.length) + '%</b> (' + aTiempo + ' de ' + tiempo.length + ').' : '') + '</p>' +
+    (l.length ? l.map((x)=> { const s = x.resumen, venc = x.estado === 'ABIERTA' && s.fechaLimite && s.fechaLimite < h, c = x.estado !== 'ABIERTA' ? 'ok' : venc ? 'mal' : 'pronto';
+      return item(x, esc(s.tipoPQRS) + ' · ' + esc(s.cliente), [esc(UI.corta(s.fecha)) + ' · ' + esc(s.canal || '') + (s.responsable ? ' · ' + esc(s.responsable) : '') + (x.estado === 'ABIERTA' && s.fechaLimite ? ' · ' + (venc ? 'venció ' : 'responder antes del ') + esc(UI.corta(s.fechaLimite)) : ''), esc(s.descripcion)], venc ? 'Vencida' : esc(x.estado === 'ABIERTA' ? 'Abierta' : x.estado === 'RESPONDIDA' ? 'Respondida' : 'Cerrada'), c); }).join('') : '<div class="empty">Sin PQRS registradas.</div>') +
+    '<button type="button" class="btn amber" id="nPqrB">+ Registrar PQRS</button><button type="button" class="btn ghost" id="pPqr">🖨️ Informe de PQRS (PDF)</button>';
+  const alistar = (v)=> { const auto = Festivos.sumarHabiles(v.fecha || UI.hoy(), DIAS_PQRS); if (!v.fechaLimite || v.fechaLimite === v.limiteAuto) v.fechaLimite = auto; v.limiteAuto = auto; /* si cambia la fecha, el plazo calculado se mueve con ella */ if (v.respuesta && v.estado === 'ABIERTA') { v.estado = 'RESPONDIDA'; v.fechaRespuesta = v.fechaRespuesta || UI.hoy(); } if (v.estado !== 'ABIERTA' && !v.respuesta && /Queja|Reclamo|Petición/.test(v.tipoPQRS)) return 'Escribe la respuesta dada al cliente antes de marcarla como respondida.'; };
+  const despues = async (v, d)=> { if (/Queja|Reclamo/.test(v.tipoPQRS) && v.procede === 'Sí' && !d.accionId) await accionDe('pqrs', d.id, { hallazgo: v.tipoPQRS + ' de ' + v.cliente + ': ' + v.descripcion, accion: 'Analizar la causa y evitar que se repita', tipoAccion: 'Correctiva', responsable: v.responsable }); };
+  abrirCon(panel, 'pqrs', 'PQRS', C_PQR, alistar, despues);
+  $('nPqrB').addEventListener('click', ()=> editar('pqrs', 'PQRS', C_PQR, { id: SGSST.nuevoId('PQR'), nuevo: true, fecha: UI.hoy(), tipoPQRS: 'Queja', canal: 'Correo', procede: 'Por analizar', estado: 'ABIERTA' }, alistar, despues));
+  $('pPqr').addEventListener('click', ()=> { const porTipo = {}; l.forEach((x)=> { porTipo[x.resumen.tipoPQRS] = (porTipo[x.resumen.tipoPQRS] || 0) + 1; });
+    UI.imprimir([UI.cabecera('SG-PQRS', 'INFORME DE PQRS DE CLIENTES', 'Corte ' + UI.corta(UI.hoy()) + ' · ' + l.length + ' registro(s) · a tiempo ' + (tiempo.length ? Math.round(aTiempo * 100 / tiempo.length) + '%' : '—')) +
+      UI.seccion('RESUMEN', UI.tablaDatos(Object.keys(porTipo).map((k)=> [k, String(porTipo[k])]))) +
+      '<table><tr><th>Fecha</th><th>Tipo</th><th>Cliente</th><th>Canal</th><th>Descripción</th><th>Responsable</th><th>Límite</th><th>Respuesta</th><th>Respondida</th><th>¿Procede?</th><th>Estado</th></tr>' +
+      l.map((x)=> { const s = x.resumen; return '<tr><td>' + esc(UI.corta(s.fecha)) + '</td><td>' + esc(s.tipoPQRS) + '</td><td>' + esc(s.cliente) + '</td><td>' + esc(s.canal || '') + '</td><td>' + esc(s.descripcion) + '</td><td>' + esc(s.responsable || '') + '</td><td>' + esc(UI.corta(s.fechaLimite)) + '</td><td>' + esc(s.respuesta || '') + '</td><td' + (s.fechaRespuesta && s.fechaLimite && s.fechaRespuesta > s.fechaLimite ? ' style="background:#f6d4cf;"' : '') + '>' + esc(UI.corta(s.fechaRespuesta)) + '</td><td>' + esc(s.procede || '') + '</td><td>' + esc(x.estado) + '</td></tr>'; }).join('') + '</table>'], true); });
+}
+/* ── Satisfacción del cliente (9.1.2) ── */
+function pintarSat(panel){
+  const l = de('encuesta').sort((a, b)=> String(b.resumen.fecha).localeCompare(String(a.resumen.fecha))), s = satisfaccion();
+  panel.innerHTML = '<p class="ayuda">Cada encuesta califica de 1 a 5 la calidad, el cumplimiento, la atención y el precio; la satisfacción es el promedio llevado a %. El NPS (¿nos recomendaría? de 0 a 10) es el % de promotores (9-10) menos el % de detractores (0-6).</p>' +
+    (s ? '<div class="card"><h2>Últimos 12 meses · ' + s.n + ' encuesta(s)</h2>' + CRITERIOS.map(([k, n])=> '<div class="criterio"><span>' + esc(n) + '</span><b>' + (s.crit[k] == null ? '—' : s.crit[k].toFixed(1).replace('.', ',') + ' / 5') + '</b></div>').join('') +
+      '<div class="criterio"><span>Satisfacción global</span><b>' + (s.pct == null ? '—' : s.pct + '%') + '</b></div><div class="criterio"><span>NPS</span><b>' + (s.nps == null ? '—' : s.nps) + '</b></div></div>' : '') +
+    (l.length ? l.map((x)=> { const r = x.resumen, pct = Math.round((Number(r.promedio) || 0) * 20), c = pct >= 85 ? 'ok' : pct >= 70 ? 'pronto' : 'mal';
+      return item(x, esc(r.cliente), [esc(UI.corta(r.fecha)) + (r.periodo ? ' · ' + esc(r.periodo) : '') + (r.encuestado ? ' · ' + esc(r.encuestado) : ''), r.comentario ? '«' + esc(r.comentario) + '»' : ''], pct + '%', c); }).join('') : '<div class="empty">Sin encuestas registradas.</div>') +
+    '<button type="button" class="btn amber" id="nEncB">+ Registrar encuesta</button><div class="fila-btn"><button type="button" class="btn ghost" id="pEnc">🖨️ Informe de satisfacción (PDF)</button><button type="button" class="btn ghost" id="pForm">🖨️ Encuesta en blanco</button></div>';
+  const campos = [{ k: 'cliente', l: 'Cliente', req: true, medio: true }, { k: 'fecha', l: 'Fecha', t: 'date', req: true, medio: true }, { k: 'encuestado', l: 'Quién respondió (nombre y cargo)', medio: true }, { k: 'periodo', l: 'Periodo evaluado', medio: true, ph: 'Ej: primer semestre 2026' }]
+    .concat(CRITERIOS.map(([k, n])=> ({ k, l: n, t: 'select', op: ESCALA5, medio: true }))).concat([{ k: 'nps', l: '¿Nos recomendaría? (0 a 10)', t: 'select', op: ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'], medio: true }, { k: 'comentario', l: 'Comentarios del cliente', t: 'textarea' }]);
+  const alistar = (v)=> { const n = CRITERIOS.map(([k])=> Number(v[k])).filter((x)=> x > 0); v.promedio = n.length ? Math.round(n.reduce((a, b)=> a + b, 0) / n.length * 100) / 100 : ''; CRITERIOS.forEach(([k])=> { v[k] = Number(v[k]) || ''; }); v.nps = v.nps === '' ? '' : Number(v.nps); };
+  const despues = async (v, d)=> { if (v.promedio && v.promedio < 3.5 && d.nuevo && confirm('La satisfacción de este cliente es baja. ¿Registrar una acción?')) await accionDe('encuesta', d.id, { hallazgo: 'Satisfacción baja de ' + v.cliente + ' (' + Math.round(v.promedio * 20) + '%)' + (v.comentario ? ': ' + v.comentario : ''), accion: 'Analizar con el cliente y definir mejoras', tipoAccion: 'Mejora' }); };
+  abrirCon(panel, 'encuesta', 'Encuesta de satisfacción', campos, alistar, despues);
+  $('nEncB').addEventListener('click', ()=> editar('encuesta', 'Encuesta de satisfacción', campos, { id: SGSST.nuevoId('ENC'), nuevo: true, fecha: UI.hoy(), calidad: '5', oportunidad: '5', atencion: '5', precio: '4', nps: '9' }, alistar, despues));
+  $('pEnc').addEventListener('click', ()=> { if (!l.length) { UI.toast('Sin encuestas.'); return; }
+    UI.imprimir([UI.cabecera('SG-SATISFACCION', 'INFORME DE SATISFACCIÓN DEL CLIENTE', 'Últimos 12 meses · corte ' + UI.corta(UI.hoy())) +
+      (s ? UI.seccion('RESULTADOS', UI.tablaDatos(CRITERIOS.map(([k, n])=> [n, s.crit[k] == null ? '—' : s.crit[k].toFixed(1).replace('.', ',') + ' / 5']).concat([['Satisfacción global', s.pct == null ? '—' : s.pct + '%'], ['NPS', s.nps == null ? '—' : String(s.nps)], ['Encuestas', String(s.n)]]))) : '') +
+      '<table><tr><th>Fecha</th><th>Cliente</th><th>Respondió</th>' + CRITERIOS.map(([, n])=> '<th>' + esc(n) + '</th>').join('') + '<th>NPS</th><th>Promedio</th><th>Comentario</th></tr>' +
+      l.map((x)=> { const r = x.resumen; return '<tr><td>' + esc(UI.corta(r.fecha)) + '</td><td>' + esc(r.cliente) + '</td><td>' + esc(r.encuestado || '') + '</td>' + CRITERIOS.map(([k])=> '<td class="a">' + esc(r[k]) + '</td>').join('') + '<td class="a">' + esc(r.nps) + '</td><td class="a">' + esc(r.promedio) + '</td><td>' + esc(r.comentario || '') + '</td></tr>'; }).join('') + '</table>'], true); });
+  $('pForm').addEventListener('click', ()=> UI.imprimir([UI.cabecera('SG-SATISFACCION', 'ENCUESTA DE SATISFACCIÓN DEL CLIENTE', EMPRESA.nombre || '') +
+    UI.seccion('DATOS', UI.tablaDatos([['Cliente', ''], ['Fecha', ''], ['Quién responde', ''], ['Periodo evaluado', '']])) +
+    UI.seccion('CALIFICACIÓN (marque con una X)', '<table><tr><th>Aspecto</th><th>5 Excelente</th><th>4 Bueno</th><th>3 Aceptable</th><th>2 Malo</th><th>1 Muy malo</th></tr>' + CRITERIOS.map(([, n])=> '<tr><td style="height:22px;">' + esc(n) + '</td><td></td><td></td><td></td><td></td><td></td></tr>').join('') + '</table>' +
+      '<table><tr><td style="height:24px;">¿Qué tan probable es que nos recomiende? &nbsp; 0 &nbsp; 1 &nbsp; 2 &nbsp; 3 &nbsp; 4 &nbsp; 5 &nbsp; 6 &nbsp; 7 &nbsp; 8 &nbsp; 9 &nbsp; 10</td></tr></table>') +
+    UI.seccion('COMENTARIOS Y SUGERENCIAS', '<table><tr><td style="height:90px;"></td></tr></table>') + '<table><tr><td class="l" style="width:25%;">Firma</td><td style="height:40px;"></td></tr></table>']));
+}
+$('tabs').addEventListener('click', (e)=>{ const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; document.querySelectorAll('#tabs button').forEach((x)=> x.classList.toggle('on', x === b)); pintar(); });
+window.addEventListener('outbox-enviado', ()=> cargar());
+cargar().then(async ()=> { const id = decodeURIComponent(location.hash.slice(1) || ''); const pre = { PNC: 'pnc', PQR: 'pqrs', RIC: 'riesgos', OBC: 'objetivos', ENC: 'satisfaccion' }[id.split('-')[0]];
+  if (pre) document.querySelector('#tabs [data-tab="' + pre + '"]').click(); });
+</script>
+</body>
+</html>

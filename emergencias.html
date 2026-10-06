@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#151b24">
+<title>Emergencias · Portal SSTA</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="sgsst.css">
+<style>
+.amenaza{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:#fcfcfb;}
+.rombos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:8px;}
+.rombos label{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:3px;}
+.rombos select{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:7px 6px;font-size:13px;font-family:inherit;}
+.rombos select.v{background:#e3f4ea;} .rombos select.a{background:#fff3c4;} .rombos select.r{background:#fbd5cf;}
+.riesgo{display:inline-block;font-weight:800;font-size:11.5px;border-radius:7px;padding:3px 8px;margin-top:6px;}
+.riesgo.Alto{background:#fbd5cf;color:#8a1f12;} .riesgo.Medio{background:#fff3c4;color:#6b5600;} .riesgo.Bajo{background:#e3f4ea;color:#1d6b43;}
+.brig{border-bottom:1px dashed #e6eaee;padding:8px 0;font-size:13px;}
+.brig small{display:block;color:var(--muted);font-size:11.5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="screen active" id="scrLista">
+  <div class="hdr">
+    <a class="back" href="index.html">← Volver al portal</a>
+    <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><div class="eyebrow">Planear el SG-SST</div>
+    <h1>Emergencias</h1>
+    <p>Plan de prevención, preparación y respuesta · brigada · simulacros</p></div></div>
+  </div>
+  <div id="avisoSrv"></div><div id="avisoCopia"></div><div id="alertas"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="tabs" id="tabs">
+    <button type="button" class="on" data-tab="plan">Plan por sede</button>
+    <button type="button" data-tab="brigada">Brigada <span class="n" id="nBrig">0</span></button>
+    <button type="button" data-tab="simulacros">Simulacros <span class="n" id="nSim">0</span></button>
+  </div>
+  <div id="panel"><div class="empty">Cargando…</div></div>
+  <div class="version-portal">Portal SSTA · versión v103</div>
+</div>
+<div class="screen" id="scrPlan"></div>
+</div>
+<script src="empresa.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="sgsst-ui.js"></script>
+<script src="registros.js"></script>
+<script>
+OfflineBanner.init();
+OutboxBadge.init();
+if (typeof Outbox !== 'undefined') Outbox.flush();
+if (typeof UpdateManager !== 'undefined') UpdateManager.init();
+
+const $ = UI.$;
+const AMENAZAS = ['Sismo', 'Incendio', 'Explosión', 'Inundación', 'Vendaval', 'Derrame de sustancias químicas', 'Fuga de gas', 'Accidente de tránsito', 'Atentado o amenaza', 'Asalto o hurto', 'Desorden público', 'Falla estructural', 'Emergencia médica masiva', 'Rescate en alturas', 'Rescate en espacio confinado', 'Otra'];
+const PON = ['Evacuación', 'Incendio', 'Sismo', 'Primeros auxilios', 'Derrame de sustancias químicas', 'Fuga de gas', 'Atentado o amenaza', 'Inundación', 'Rescate en alturas', 'Rescate en espacio confinado'];
+const DOTACION = ['Camilla', 'Botiquín', 'Extintores', 'Inmovilizadores', 'Radios', 'Megáfono o pito', 'Linternas', 'Chalecos de brigada', 'DEA (desfibrilador)'];
+const ROLES = ['Líder de brigada', 'Primeros auxilios', 'Control de incendios', 'Evacuación y rescate', 'Brigadista integral'];
+/* Método de análisis de riesgo por colores: amenaza (posible / probable / inminente) y
+   vulnerabilidad de personas, recursos y sistemas (baja / media / alta). */
+const COLOR = { v: 'Verde', a: 'Amarillo', r: 'Rojo' };
+function nivelRiesgo(a) {
+  const c = [a.amenaza, a.personas, a.recursos, a.sistemas];
+  const r = c.filter((x)=> x === 'r').length, am = c.filter((x)=> x === 'a').length;
+  return r >= 3 ? 'Alto' : (r >= 1 || am >= 3) ? 'Medio' : 'Bajo';
+}
+let planes = [], simulacros = [], equipos = [], tab = 'plan', actual = null;
+function show(id){ document.querySelectorAll('.screen').forEach((s)=>s.classList.toggle('active', s.id === id)); window.scrollTo(0, 0); }
+
+async function cargar(){
+  if (UI.avisoServidor($('avisoSrv'))) { $('panel').innerHTML = ''; return; }
+  const r = await SGSST.listar('emergencia,simulacro,equipo');
+  UI.avisoCopia($('avisoCopia'), r);
+  planes = r.rows.filter((x)=> x.tipo === 'emergencia'); simulacros = r.rows.filter((x)=> x.tipo === 'simulacro').sort((a, b)=> String(b.resumen.fecha).localeCompare(String(a.resumen.fecha)));
+  equipos = r.rows.filter((x)=> x.tipo === 'equipo' && x.resumen.activo !== false);
+  pintar();
+  // La capacitación de la brigada vence con el tiempo: se recalcula y se deja al día lo que leen
+  // los indicadores, la autoevaluación y la revisión por la dirección.
+  if (!navigator.onLine || r.desdeCopia) return;
+  let cambio = false;
+  for (const x of planes) {
+    const d = await SGSST.doc(x.id); if (!d) continue;
+    const cap = (d.brigada || []).filter(capVigente).length, est = d.proximaRevision && d.proximaRevision < UI.hoy() ? 'POR ACTUALIZAR' : 'VIGENTE';
+    if (cap !== Number(x.resumen.brigadistasCapacitados) || est !== x.resumen.estado) { await SGSST.enviar({ action: 'parche', tipo: 'emergencia', id: x.id, campos: { brigadistasCapacitados: cap, estado: est } }); x.resumen.brigadistasCapacitados = cap; x.resumen.estado = est; cambio = true; }
+  }
+  if (cambio) pintar();
+}
+function pintar(){
+  const h = UI.hoy(), hace = Festivos.sumarDias(h, -365);
+  const sim12 = simulacros.filter((x)=> x.resumen.fecha >= hace);
+  const brig = planes.reduce((a, x)=> a + (Number(x.resumen.brigadistas) || 0), 0), cap = planes.reduce((a, x)=> a + (Number(x.resumen.brigadistasCapacitados) || 0), 0);
+  const vencido = planes.filter((x)=> x.resumen.proximaRevision && x.resumen.proximaRevision < h);
+  $('nBrig').textContent = brig; $('nSim').textContent = simulacros.length;
+  $('kpis').innerHTML = '<div class="kpi ' + (planes.length && !vencido.length ? 'ok' : 'mal') + '"><div class="v">' + planes.length + '</div><div class="n">plan(es) de emergencia</div>' + (vencido.length ? '<div class="f">' + vencido.length + ' por actualizar</div>' : '') + '</div>' +
+    '<div class="kpi ' + (sim12.length ? 'ok' : 'mal') + '"><div class="v">' + sim12.length + '</div><div class="n">simulacros en los últimos 12 meses</div></div>' +
+    '<div class="kpi ' + (brig && cap === brig ? 'ok' : brig ? '' : 'mal') + '"><div class="v">' + cap + ' / ' + brig + '</div><div class="n">brigadistas capacitados en el último año</div></div>';
+  const al = [];
+  if (!planes.length) al.push('<div class="aviso">No hay plan de emergencias registrado (estándar 5.1.1). Crea el de cada sede.</div>');
+  if (!sim12.length) al.push('<div class="aviso amar">No hay simulacro en los últimos 12 meses: se hace por lo menos uno al año, con la participación de todos los trabajadores (Dec. 1072, art. 2.2.4.6.25).</div>');
+  $('alertas').innerHTML = al.join('');
+  ({ plan: pintarPlanes, brigada: pintarBrigada, simulacros: pintarSimulacros })[tab]($('panel'));
+}
+
+/* ── Plan por sede ── */
+function pintarPlanes(panel){
+  panel.innerHTML = (planes.length ? planes.map((x)=> { const s = x.resumen, c = UI.semaforo(s.proximaRevision, 30);
+    return '<button type="button" class="item ' + c + '" data-id="' + esc(x.id) + '"><div class="fila"><div><div class="t">' + esc(s.sede) + '</div><div class="m">' + esc(s.direccion || '') + ' · ' + esc(s.ocupantes || 0) + ' ocupantes · coordinador: ' + esc(s.coordinador || '—') + '</div>' +
+      '<div class="m">' + esc(s.amenazas || 0) + ' amenazas analizadas · ' + esc(s.riesgoAlto || 0) + ' en riesgo alto · ' + esc(s.brigadistas || 0) + ' brigadistas</div></div><span class="chip ' + c + '">Revisar ' + esc(UI.corta(s.proximaRevision)) + '</span></div></button>'; }).join('') : '<div class="empty">Sin planes registrados.</div>') +
+    '<button type="button" class="btn amber" id="btnPlan">+ Plan de emergencias de una sede</button>';
+  panel.querySelectorAll('[data-id]').forEach((b)=> b.addEventListener('click', async ()=> { const d = await Registros.abrir(b.dataset.id); if (d) editarPlan(d); }));
+  $('btnPlan').addEventListener('click', ()=> editarPlan({ id: SGSST.nuevoId('EME'), nuevo: true, sede: planes.length ? '' : 'Sede principal', fechaActualizacion: UI.hoy(), proximaRevision: Festivos.sumarMeses(UI.hoy(), 12),
+    amenazasLista: ['Sismo', 'Incendio', 'Emergencia médica masiva'].map((n)=> ({ uid: SGSST.nuevoOpId(), amenaza: n, origen: n === 'Sismo' ? 'Natural' : n === 'Incendio' ? 'Tecnológica' : 'Social', calif: { amenaza: 'a', personas: 'a', recursos: 'a', sistemas: 'a' } })),
+    pon: ['Evacuación', 'Incendio', 'Sismo', 'Primeros auxilios'], brigada: [], dotacion: {}, telefonos: 'Línea de emergencias: 123\nARL: \nBomberos: 119\nCruz Roja: 132' }));
+}
+function editarPlan(d){
+  actual = d;
+  d.amenazasLista = d.amenazasLista || []; d.brigada = d.brigada || []; d.dotacion = d.dotacion || {}; d.pon = d.pon || [];
+  const ext = equipos.filter((x)=> x.resumen.categoria === 'extintor').length, bot = equipos.filter((x)=> x.resumen.categoria === 'botiquin').length;
+  const s = $('scrPlan');
+  s.innerHTML = '<div class="hdr"><a class="back" href="#" data-volver>← Volver</a><div class="eyebrow">Plan de emergencias</div><h1>' + esc(d.sede || 'Nueva sede') + '</h1><p>Estándar 5.1.1 · Dec. 1072, art. 2.2.4.6.25</p></div>' +
+    '<div class="card"><h2>Sede</h2>' + Registros.form([{ k: 'sede', l: 'Sede', req: true, medio: true }, { k: 'direccion', l: 'Dirección', medio: true }, { k: 'ocupantes', l: 'Ocupantes (trabajadores y visitantes)', t: 'number', medio: true }, { k: 'horario', l: 'Horario', medio: true },
+      { k: 'coordinador', l: 'Coordinador de emergencias', t: 'persona' }, { k: 'puntoEncuentro', l: 'Punto de encuentro' }, { k: 'rutas', l: 'Rutas de evacuación y salidas', t: 'textarea' },
+      { k: 'telefonos', l: 'Teléfonos de emergencia (uno por línea)', t: 'textarea' }, { k: 'fechaActualizacion', l: 'Actualizado el', t: 'date', medio: true }, { k: 'proximaRevision', l: 'Próxima revisión', t: 'date', medio: true }], d, 'pl_') + '</div>' +
+    '<div class="card"><h2>Análisis de amenazas y vulnerabilidad</h2><p class="ayuda">Método por colores: amenaza (verde posible, amarillo probable, rojo inminente) y vulnerabilidad de personas, recursos y sistemas (verde baja, amarillo media, rojo alta). 3 o 4 en rojo = riesgo alto; 1–2 en rojo o 3–4 en amarillo = medio.</p><div id="plAm"></div><button type="button" class="btn ghost" id="plAmAdd">+ Amenaza</button></div>' +
+    '<div class="card"><h2>Procedimientos operativos (PON)</h2><div class="chips" id="plPon">' + PON.map((p)=> '<button type="button" data-v="' + esc(p) + '" class="' + (d.pon.indexOf(p) !== -1 ? 'on' : '') + '">' + esc(p) + '</button>').join('') + '</div>' +
+      '<p class="ayuda" style="margin-top:8px;">Recursos del inventario de inspecciones: ' + ext + ' extintor(es) y ' + bot + ' botiquín(es). <a href="inspecciones.html">Ver inventario</a></p></div>' +
+    '<div class="card"><h2>Brigada de emergencias</h2><div id="plBrig"></div><button type="button" class="btn ghost" id="plBrigAdd">+ Brigadista</button><button type="button" class="btn ghost" id="plCap">📚 Registrar capacitación de la brigada</button></div>' +
+    '<div class="card"><h2>Dotación de la brigada</h2>' + DOTACION.map((x)=> '<div class="asis"><div>' + esc(x) + '</div><div class="seg-btn" data-dot="' + esc(x) + '">' + ['Completo', 'Incompleto', 'No tiene'].map((v)=> '<button type="button" data-v="' + v + '" class="' + (d.dotacion[x] === v ? 'on' : '') + '">' + v.replace('Incompleto', 'Incompl.') + '</button>').join('') + '</div></div>').join('') +
+      '<p class="ayuda" style="margin-top:8px;"><a href="inspeccion-epp.html?tipo=brigadista">Inspección de EPP de brigadistas</a></p></div>' +
+    '<div class="card"><h2>Divulgación</h2>' + Registros.form([{ k: 'divulgacionFecha', l: 'Última socialización del plan', t: 'date', medio: true }, { k: 'divulgacionPersonas', l: 'Personas', t: 'number', medio: true }], d, 'pl_') + '</div>' +
+    '<button type="button" class="btn amber" id="plOk">Guardar plan</button><button type="button" class="btn ghost" id="plPdf">🖨️ Plan de emergencias (PDF)</button><div class="status-msg" id="plMsg"></div>';
+  Registros.activar(s);
+  s.querySelectorAll('.seg-btn[data-dot]').forEach((g)=> g.addEventListener('click', (e)=> { const b = e.target.closest('[data-v]'); if (!b) return; g.querySelectorAll('button').forEach((x)=> x.classList.toggle('on', x === b)); }));
+  pintarAmenazas(); pintarBrig();
+  $('plAmAdd').addEventListener('click', ()=> { leerAmenazas(); d.amenazasLista.push({ uid: SGSST.nuevoOpId(), amenaza: 'Otra', origen: 'Tecnológica', calif: { amenaza: 'v', personas: 'v', recursos: 'v', sistemas: 'v' } }); pintarAmenazas(); });
+  $('plBrigAdd').addEventListener('click', ()=> Registros.editar({ titulo: 'Brigadista', campos: [{ k: 'nombre', l: 'Nombre', t: 'persona', req: true }, { k: 'cedula', l: 'Cédula', medio: true }, { k: 'cargo', l: 'Cargo', medio: true }, { k: 'rol', l: 'Rol en la brigada', t: 'select', op: ROLES }], datos: {},
+    alElegirPersona: (i, p, el, pref)=> { el.querySelector('#' + pref + 'cedula').value = p.cedula || ''; el.querySelector('#' + pref + 'cargo').value = p.cargo || ''; },
+    alGuardar: (v)=> { d.brigada.push(Object.assign({ uid: SGSST.nuevoOpId(), capacitaciones: [] }, v)); pintarBrig(); return true; } }));
+  $('plCap').addEventListener('click', capacitacionBrigada);
+  $('plOk').addEventListener('click', guardarPlan);
+  $('plPdf').addEventListener('click', ()=> { leerPlan(); pdfPlan(actual); });
+  show('scrPlan');
+}
+function pintarAmenazas(){
+  const d = actual;
+  $('plAm').innerHTML = d.amenazasLista.map((a, i)=> '<div class="amenaza" data-i="' + i + '"><div class="grid2"><div class="field" style="margin:0;"><select data-k="amenaza">' + AMENAZAS.map((x)=> '<option' + (x === a.amenaza ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select></div>' +
+    '<div class="field" style="margin:0;"><select data-k="origen">' + ['Natural', 'Tecnológica', 'Social'].map((x)=> '<option' + (x === a.origen ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></div></div>' +
+    '<div class="rombos">' + [['amenaza', 'Amenaza', ['Posible', 'Probable', 'Inminente']], ['personas', 'Personas'], ['recursos', 'Recursos'], ['sistemas', 'Sistemas']].map(([k, n, et])=> '<div><label>' + n + '</label><select data-c="' + k + '" class="' + (a.calif[k] || 'v') + '">' +
+      ['v', 'a', 'r'].map((c, j)=> '<option value="' + c + '"' + ((a.calif[k] || 'v') === c ? ' selected' : '') + '>' + (et ? et[j] : ['Baja', 'Media', 'Alta'][j]) + '</option>').join('') + '</select></div>').join('') + '</div>' +
+    '<span class="riesgo ' + nivelRiesgo(a.calif) + '">Riesgo ' + nivelRiesgo(a.calif).toLowerCase() + '</span> <button type="button" class="btn mini ghost" data-q="' + i + '" style="float:right;margin-top:4px;">Quitar</button></div>').join('') || '<div class="m" style="font-size:13px;color:var(--muted);">Sin amenazas.</div>';
+  $('plAm').querySelectorAll('select[data-c]').forEach((sl)=> sl.addEventListener('change', ()=> { leerAmenazas(); pintarAmenazas(); }));
+  $('plAm').querySelectorAll('[data-q]').forEach((b)=> b.addEventListener('click', ()=> { leerAmenazas(); actual.amenazasLista.splice(+b.dataset.q, 1); pintarAmenazas(); }));
+}
+function leerAmenazas(){
+  actual.amenazasLista = [...$('plAm').querySelectorAll('.amenaza')].map((el, i)=> { const c = {}; el.querySelectorAll('[data-c]').forEach((x)=> { c[x.dataset.c] = x.value; });
+    return { uid: (actual.amenazasLista[i] || {}).uid || SGSST.nuevoOpId(), amenaza: el.querySelector('[data-k="amenaza"]').value, origen: el.querySelector('[data-k="origen"]').value, calif: c }; });
+}
+const capVigente = (b)=> (b.capacitaciones || []).some((c)=> c.fecha >= Festivos.sumarDias(UI.hoy(), -365));
+function pintarBrig(){
+  $('plBrig').innerHTML = actual.brigada.length ? actual.brigada.map((b, i)=> '<div class="brig"><b>' + esc(b.nombre) + '</b> · ' + esc(b.rol) + ' <button type="button" class="btn mini ghost" data-qb="' + i + '" style="float:right;">Quitar</button><small>' + esc(b.cargo || '') +
+    ' · ' + (b.capacitaciones || []).length + ' capacitación(es) · ' + (capVigente(b) ? '✓ capacitado en el último año' : '⚠ sin capacitación en el último año') + '</small></div>').join('') : '<div class="m" style="font-size:13px;color:var(--muted);">Sin brigadistas.</div>';
+  $('plBrig').querySelectorAll('[data-qb]').forEach((x)=> x.addEventListener('click', ()=> { actual.brigada.splice(+x.dataset.qb, 1); pintarBrig(); }));
+}
+function capacitacionBrigada(){
+  if (!actual.brigada.length) { UI.toast('Primero agrega a los brigadistas.', 'mal'); return; }
+  Registros.editar({ titulo: 'Capacitación de la brigada', campos: [{ k: 'fecha', l: 'Fecha', t: 'date', req: true, medio: true, def: UI.hoy() }, { k: 'horas', l: 'Horas', t: 'number', medio: true, def: 4 }, { k: 'tema', l: 'Tema', req: true, ph: 'Ej: Primeros auxilios básicos' }, { k: 'entidad', l: 'Quién la dio', ph: 'Ej: ARL, bomberos' }],
+    despues: '<div class="field"><label>Asistieron</label>' + actual.brigada.map((b, i)=> '<label class="check"><input type="checkbox" data-asis="' + i + '" checked> ' + esc(b.nombre) + '</label>').join('') + '</div>',
+    alGuardar: (v, el)=> { el.querySelectorAll('[data-asis]').forEach((c)=> { if (c.checked) { const b = actual.brigada[+c.dataset.asis]; b.capacitaciones = (b.capacitaciones || []).concat({ fecha: v.fecha, tema: v.tema, horas: v.horas, entidad: v.entidad }); } }); pintarBrig(); UI.toast('Anotada. Guarda el plan para que quede.'); return true; } });
+}
+function leerPlan(){
+  const s = $('scrPlan'), d = actual;
+  Object.assign(d, Registros.leer([{ k: 'sede' }, { k: 'direccion' }, { k: 'ocupantes', t: 'number' }, { k: 'horario' }, { k: 'coordinador' }, { k: 'puntoEncuentro' }, { k: 'rutas' }, { k: 'telefonos' }, { k: 'fechaActualizacion' }, { k: 'proximaRevision' }, { k: 'divulgacionFecha' }, { k: 'divulgacionPersonas', t: 'number' }], s, 'pl_'));
+  leerAmenazas();
+  d.pon = [...$('plPon').querySelectorAll('button.on')].map((b)=> b.dataset.v);
+  s.querySelectorAll('.seg-btn[data-dot]').forEach((g)=> { const b = g.querySelector('button.on'); if (b) d.dotacion[g.dataset.dot] = b.dataset.v; });
+  d.amenazas = d.amenazasLista.length; d.riesgoAlto = d.amenazasLista.filter((a)=> nivelRiesgo(a.calif) === 'Alto').length; d.riesgoMedio = d.amenazasLista.filter((a)=> nivelRiesgo(a.calif) === 'Medio').length;
+  d.brigadistas = d.brigada.length; d.brigadistasCapacitados = d.brigada.filter(capVigente).length;
+  d.estado = d.proximaRevision && d.proximaRevision < UI.hoy() ? 'POR ACTUALIZAR' : 'VIGENTE';
+}
+async function guardarPlan(){
+  leerPlan(); const d = actual;
+  if (!d.sede) { $('plMsg').textContent = 'Falta el nombre de la sede.'; return; }
+  const r = await Registros.guardar('emergencia', d.id, d, d.nuevo ? 0 : d.version);
+  if (typeof r === 'string') { $('plMsg').textContent = r; return; }
+  UI.toast('✓ Plan guardado.'); show('scrLista'); cargar();
+}
+function pdfPlan(d){
+  const col = { v: '#cfeedd', a: '#fff1b8', r: '#f6c3bb' };
+  const am = '<table><tr><th>Amenaza</th><th style="width:12%">Origen</th><th style="width:11%">Amenaza</th><th style="width:11%">Personas</th><th style="width:11%">Recursos</th><th style="width:11%">Sistemas</th><th style="width:11%">Riesgo</th></tr>' +
+    d.amenazasLista.map((a)=> '<tr><td>' + esc(a.amenaza) + '</td><td>' + esc(a.origen) + '</td>' + ['amenaza', 'personas', 'recursos', 'sistemas'].map((k)=> '<td style="background:' + col[a.calif[k] || 'v'] + ';">' + COLOR[a.calif[k] || 'v'] + '</td>').join('') + '<td><b>' + nivelRiesgo(a.calif) + '</b></td></tr>').join('') + '</table>';
+  const br = '<table><tr><th>Brigadista</th><th style="width:22%">Rol</th><th style="width:20%">Cargo</th><th style="width:26%">Última capacitación</th></tr>' + d.brigada.map((b)=> { const c = (b.capacitaciones || []).slice().sort((x, y)=> String(y.fecha).localeCompare(String(x.fecha)))[0]; return '<tr><td>' + esc(b.nombre) + '</td><td>' + esc(b.rol) + '</td><td>' + esc(b.cargo || '') + '</td><td>' + (c ? esc(UI.corta(c.fecha) + ' · ' + c.tema) : '—') + '</td></tr>'; }).join('') + '</table>';
+  UI.imprimir([UI.cabecera('SG-PLAN-EMERGENCIAS', 'PLAN DE PREVENCIÓN, PREPARACIÓN Y RESPUESTA ANTE EMERGENCIAS', d.sede + ' · actualizado ' + UI.corta(d.fechaActualizacion)) +
+    UI.seccion('DATOS DE LA SEDE', UI.tablaDatos([['Sede', d.sede], ['Dirección', d.direccion || ''], ['Ocupantes', String(d.ocupantes || '')], ['Horario', d.horario || ''], ['Coordinador', d.coordinador || ''], ['Punto de encuentro', d.puntoEncuentro || ''], ['Próxima revisión', UI.corta(d.proximaRevision)], ['Socialización', d.divulgacionFecha ? UI.corta(d.divulgacionFecha) + ' · ' + (d.divulgacionPersonas || 0) + ' personas' : '—']])) +
+    UI.seccion('ANÁLISIS DE AMENAZAS Y VULNERABILIDAD (MÉTODO POR COLORES)', am) + UI.seccion('RUTAS DE EVACUACIÓN', UI.textoLargo(d.rutas)) +
+    UI.seccion('PROCEDIMIENTOS OPERATIVOS NORMALIZADOS', '<table><tr><td>' + esc(d.pon.join(' · ') || '—') + '</td></tr></table>') + UI.seccion('BRIGADA DE EMERGENCIAS', br) +
+    UI.seccion('DOTACIÓN', '<table><tr><td>' + DOTACION.map((x)=> esc(x) + ': ' + esc(d.dotacion[x] || '—')).join(' · ') + '</td></tr></table>') + UI.seccion('TELÉFONOS DE EMERGENCIA', UI.textoLargo(d.telefonos))]);
+}
+
+/* ── Brigada (todas las sedes) ── */
+async function pintarBrigada(panel){
+  panel.innerHTML = '<div class="status-msg">Cargando…</div>';
+  const docs = (await Promise.all(planes.map((x)=> SGSST.doc(x.id)))).filter(Boolean);
+  const l = []; docs.forEach((d)=> (d.brigada || []).forEach((b)=> l.push(Object.assign({ sede: d.sede }, b))));
+  panel.innerHTML = (l.length ? l.map((b)=> { const ok = capVigente(b), c = (b.capacitaciones || []).slice().sort((x, y)=> String(y.fecha).localeCompare(String(x.fecha)))[0];
+    return '<div class="item ' + (ok ? 'ok' : 'mal') + '"><div class="fila"><div><div class="t">' + esc(b.nombre) + '</div><div class="m">' + esc(b.rol) + ' · ' + esc(b.sede) + '</div><div class="m">Última capacitación: ' + (c ? esc(UI.corta(c.fecha) + ' · ' + c.tema) : '—') + '</div></div>' +
+      '<span class="chip ' + (ok ? 'ok' : 'mal') + '">' + (ok ? 'Capacitado' : 'Sin capacitación reciente') + '</span></div></div>'; }).join('') : '<div class="empty">La brigada se registra dentro del plan de cada sede.</div>') +
+    '<p class="ayuda">Para agregar brigadistas o registrar una capacitación, abre el plan de la sede. Estándar 5.1.2: brigada conformada, capacitada y dotada.</p>';
+}
+
+/* ── Simulacros ── */
+const C_SIM = [{ k: 'fecha', l: 'Fecha', t: 'date', req: true, medio: true }, { k: 'tipoSimulacro', l: 'Tipo', t: 'select', op: ['Evacuación', 'Incendio', 'Sismo', 'Derrame', 'Primeros auxilios', 'Rescate en alturas', 'Simulacro de escritorio'], medio: true },
+  { k: 'sede', l: 'Sede', medio: true }, { k: 'escenario', l: 'Escenario', req: true, medio: true, ph: 'Ej: conato de incendio en la bodega' },
+  { k: 'participantes', l: 'Participantes', t: 'number', medio: true }, { k: 'observadores', l: 'Observadores', medio: true },
+  { k: 'horaAlarma', l: 'Hora de la alarma', t: 'text', medio: true, ph: '10:00' }, { k: 'horaLlegada', l: 'Llegada al punto de encuentro', t: 'text', medio: true, ph: '10:04' },
+  { k: 'conteoCompleto', l: 'Se hizo el conteo y estaban todos', t: 'check' },
+  { k: 'calificacion', l: 'Calificación', t: 'select', op: ['Excelente', 'Bueno', 'Regular', 'Deficiente'] },
+  { k: 'fortalezas', l: 'Fortalezas', t: 'textarea' }, { k: 'hallazgosTexto', l: 'Por mejorar (una por línea: cada una puede ir al plan de acción)', t: 'textarea' }];
+function minutos(a, b){ const p = (x)=> { const m = /^(\d{1,2}):(\d{2})/.exec(String(x || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }; const x = p(a), y = p(b); return x == null || y == null ? '' : (y - x + 1440) % 1440; }
+function pintarSimulacros(panel){
+  panel.innerHTML = (simulacros.length ? simulacros.map((x)=> { const s = x.resumen, c = { Excelente: 'ok', Bueno: 'ok', Regular: 'pronto', Deficiente: 'mal' }[s.calificacion] || '';
+    return '<button type="button" class="item ' + c + '" data-id="' + esc(x.id) + '"><div class="fila"><div><div class="t">' + esc(s.tipoSimulacro) + ' · ' + esc(s.escenario) + '</div><div class="m">' + esc(UI.corta(s.fecha)) + ' · ' + esc(s.sede || '') + ' · ' + esc(s.participantes || 0) + ' participantes' + (s.tiempoTotal !== '' ? ' · evacuación en ' + esc(s.tiempoTotal) + ' min' : '') + '</div></div>' +
+      '<span class="chip ' + c + '">' + esc(s.calificacion) + '</span></div></button>'; }).join('') : '<div class="empty">Sin simulacros registrados.</div>') +
+    '<button type="button" class="btn amber" id="btnSim">+ Registrar simulacro</button>';
+  panel.querySelectorAll('[data-id]').forEach((b)=> b.addEventListener('click', async ()=> { const d = await Registros.abrir(b.dataset.id); if (d) editarSimulacro(d); }));
+  $('btnSim').addEventListener('click', ()=> editarSimulacro({ id: SGSST.nuevoId('SIM'), nuevo: true, fecha: UI.hoy(), sede: planes[0] ? planes[0].resumen.sede : '', calificacion: 'Bueno' }));
+}
+function editarSimulacro(d){
+  Registros.editar({ titulo: d.nuevo ? 'Simulacro' : 'Simulacro del ' + UI.corta(d.fecha), campos: C_SIM, datos: d,
+    despues: d.nuevo ? '' : '<button type="button" class="btn ghost" id="simPdf">🖨️ Informe del simulacro (PDF)</button>',
+    alAbrir: (el)=> { const b = el.querySelector('#simPdf'); if (b) b.addEventListener('click', ()=> pdfSimulacro(d)); },
+    alGuardar: async (v)=> {
+      v.tiempoTotal = minutos(v.horaAlarma, v.horaLlegada);
+      const lineas = String(v.hallazgosTexto || '').split('\n').map((x)=> x.trim()).filter(Boolean);
+      v.hallazgos = lineas.length; v.accionesCreadas = Number(v.accionesCreadas) || 0;
+      const r = await Registros.guardar('simulacro', d.id, v, d.nuevo ? 0 : d.version); if (typeof r === 'string') return r;
+      // Las acciones después de guardar: si el guardado falla, no quedan repetidas.
+      if (!r.enCola) await Registros.accionesPorLinea(lineas, v.accionesCreadas, 'simulacro', d.id, (t)=> ({ origen: 'Simulacro', origenRef: d.id, hallazgo: 'Simulacro del ' + UI.corta(v.fecha) + ': ' + t, accion: t, tipoAccion: 'Preventiva' }));
+      cargar(); return true;
+    } });
+}
+function pdfSimulacro(d){
+  UI.imprimir([UI.cabecera('SG-SIMULACRO', 'INFORME DE SIMULACRO', d.tipoSimulacro + ' · ' + UI.corta(d.fecha)) +
+    UI.seccion('DATOS', UI.tablaDatos([['Fecha', UI.corta(d.fecha)], ['Tipo', d.tipoSimulacro], ['Sede', d.sede || ''], ['Escenario', d.escenario], ['Participantes', String(d.participantes || '')], ['Observadores', d.observadores || ''],
+      ['Alarma', d.horaAlarma || ''], ['Llegada al punto de encuentro', d.horaLlegada || ''], ['Tiempo total', d.tiempoTotal !== '' ? d.tiempoTotal + ' min' : '—'], ['Conteo completo', d.conteoCompleto ? 'Sí' : 'No'], ['Calificación', d.calificacion]])) +
+    UI.seccion('FORTALEZAS', UI.textoLargo(d.fortalezas)) + UI.seccion('POR MEJORAR', UI.textoLargo(d.hallazgosTexto))]);
+}
+
+$('tabs').addEventListener('click', (e)=>{ const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; document.querySelectorAll('#tabs button').forEach((x)=> x.classList.toggle('on', x === b)); pintar(); });
+document.addEventListener('click', (e)=>{ const v = e.target.closest('[data-volver]'); if (v) { e.preventDefault(); show('scrLista'); pintar(); } });
+window.addEventListener('outbox-enviado', ()=> cargar());
+cargar();
+</script>
+</body>
+</html>
