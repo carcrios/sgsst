@@ -12,10 +12,21 @@
 .docrow{border-bottom:1px dashed #e6eaee;padding:9px 0;}
 .docrow .dt{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;font-weight:600;line-height:1.35;}
 .docrow .dt span:first-child{flex:1;min-width:0;}
-.docrow .grid3{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-top:6px;}
-.docrow input[type=date]{width:100%;border:1.5px solid var(--line);border-radius:9px;padding:8px;font-size:14px;font-family:inherit;box-sizing:border-box;}
-.docrow label{font-size:11px;color:var(--muted);display:block;margin-bottom:2px;}
-.docrow .na{font-size:12px;white-space:nowrap;display:flex;gap:4px;align-items:center;padding-bottom:8px;}
+.docrow .dt .chip{flex:0 0 auto;}
+/* ¿Aplica? (v107): dos botones iguales, el texto centrado en cualquier ancho */
+.docrow .doc-ap{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;}
+.docrow .doc-ap button{min-width:0;min-height:44px;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px 8px;margin:0;line-height:1.2;}
+.docrow .doc-fechas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px;}
+.docrow.no-aplica .doc-fechas{display:none;}
+.docrow input[type=date]{width:100%;min-width:0;min-height:44px;border:1.5px solid var(--line);border-radius:9px;padding:8px;font-size:14px;font-family:inherit;box-sizing:border-box;background:#fcfbf8;}
+.docrow label{font-size:11px;color:var(--muted);display:block;margin-bottom:2px;font-weight:700;text-transform:uppercase;}
+.docrow .doc-av{font-size:12px;font-weight:700;line-height:1.35;margin-top:5px;}
+.docrow .doc-av:empty{display:none;}
+.docrow .doc-av.mal{color:var(--mal);} .docrow .doc-av.pronto{color:#7a5800;} .docrow .doc-av.gris{color:var(--muted);font-weight:600;}
+@media (max-width:380px){ .docrow .doc-fechas{grid-template-columns:1fr;} }
+.nit-dv{font-size:12px;font-weight:700;color:var(--ok);margin-top:4px;}
+.barra-ctr{position:sticky;bottom:0;z-index:5;background:linear-gradient(transparent,var(--bg,#eef1f4) 22%);padding:12px 0 calc(8px + env(safe-area-inset-bottom,0px));}
+.barra-ctr .btn{margin:0;}
 .persona{display:flex;gap:10px;align-items:flex-start;border-bottom:1px dashed #e6eaee;padding:8px 0;font-size:13px;}
 .persona > div{flex:1;min-width:0;}
 .persona small{display:block;color:var(--muted);font-size:11.5px;line-height:1.35;}
@@ -35,13 +46,17 @@
     <p>Documentos de cada empresa contratista y control de ingreso a obra (Dec. 1072, art. 2.2.4.6.28)</p></div></div>
   </div>
   <div id="avisoSrv"></div><div id="avisoCopia"></div>
+  <div class="acciones-top">
+    <button type="button" class="btn amber" id="btnNuevoCtr">+ Nuevo contratista</button>
+    <button type="button" class="btn ghost" id="btnNuevoIng">🚧 Registrar un ingreso a obra</button>
+  </div>
   <div class="kpis" id="kpis"></div>
   <div class="tabs" id="tabs">
     <button type="button" class="on" data-tab="empresas">Contratistas <span class="n" id="nEmp">0</span></button>
     <button type="button" data-tab="ingresos">Ingresos a obra <span class="n" id="nIng">0</span></button>
   </div>
   <div id="panel"><div class="empty">Cargando…</div></div>
-  <div class="version-portal">Portal SSTA · versión v106</div>
+  <div class="version-portal">Portal SSTA · versión v107</div>
 </div>
 
 <div class="screen" id="scrCtr">
@@ -51,16 +66,15 @@
     <h1 id="cTitulo">—</h1>
     <p id="cSub"></p>
   </div>
+  <div class="acciones-top"><button type="button" class="btn ghost" id="btnPdfCtr">🖨️ Ficha del contratista (PDF)</button><button type="button" class="btn ghost" id="btnIngresoCtr">🚧 Registrar un ingreso</button></div>
   <div class="card"><h2>Datos de la empresa</h2><div id="cDatos"></div></div>
   <div class="card"><h2>Documentos</h2><p class="ayuda">Fecha de expedición y vencimiento de cada uno. Adjunta el soporte (PDF o foto) para que quede la evidencia.</p><div id="cDocs"></div><div id="cAdj"></div></div>
   <div class="card"><h2>Personal del contratista</h2><div id="cPersonal"></div>
     <a class="btn ghost" href="habilitacion.html" style="display:block;text-align:center;margin-top:8px;">Registrar o actualizar personas en Personal habilitado →</a>
     <p class="ayuda">Se toman de <b>Personal habilitado</b> las personas cuya empresa es este contratista (seguridad social, inducción, concepto médico, cursos).</p></div>
   <div class="card" id="cEval" hidden></div>
-  <button type="button" class="btn amber" id="btnGuardarCtr">Guardar contratista</button>
-  <div class="fila-btn"><button type="button" class="btn ghost" id="btnPdfCtr">🖨️ Ficha del contratista</button><button type="button" class="btn ghost" id="btnIngresoCtr">🚧 Registrar un ingreso</button></div>
   <div id="cHist"></div>
-  <div class="status-msg" id="msgCtr"></div>
+  <div class="barra-guardar barra-ctr"><div class="status-msg" id="msgCtr"></div><button type="button" class="btn amber" id="btnGuardarCtr">Guardar contratista</button></div>
 </div>
 
 <div class="screen" id="scrIng">
@@ -77,6 +91,7 @@
 <script src="empresa.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
+<script src="valida.js"></script>
 <script src="sgsst-ui.js"></script>
 <script src="registros.js"></script>
 <script>
@@ -103,9 +118,9 @@ const DOCS_BASE = [
 const DOCS = (typeof EMPRESA !== 'undefined' && EMPRESA.contratistas && EMPRESA.contratistas.documentos) || DOCS_BASE;
 const TAREAS = [['alturas', 'Trabajo en alturas'], ['confinados', 'Espacios confinados'], ['caliente', 'Trabajo en caliente'], ['electrico', 'Riesgo eléctrico'], ['izajes', 'Izaje de cargas']];
 const CAMPOS_CTR = [
-  { k: 'nombre', l: 'Razón social', req: true }, { k: 'nit', l: 'NIT', medio: true }, { k: 'arl', l: 'ARL', medio: true },
+  { k: 'nombre', l: 'Razón social', req: true }, { k: 'nit', l: 'NIT', medio: true, ph: 'Ej: 900123456-7' }, { k: 'arl', l: 'ARL', medio: true },
   { k: 'servicio', l: 'Servicio que presta', ph: 'Ej: montaje de andamios, mantenimiento eléctrico' },
-  { k: 'contacto', l: 'Contacto', medio: true }, { k: 'telefono', l: 'Teléfono', medio: true },
+  { k: 'contacto', l: 'Contacto', medio: true }, { k: 'telefono', l: 'Teléfono', medio: true, ph: 'Celular o fijo' },
   { k: 'responsableSst', l: 'Responsable de SST del contratista' },
   { k: 'estado', l: 'Estado', t: 'select', op: ['ACTIVO', 'INACTIVO'], def: 'ACTIVO' }
 ];
@@ -160,25 +175,25 @@ function pintar(){
   const p = $('panel');
   if (tab === 'empresas') {
     const l = de('contratista').sort((a, b)=> (a.estado === 'INACTIVO') - (b.estado === 'INACTIVO') || String(a.titulo).localeCompare(String(b.titulo)));
-    p.innerHTML = '<button type="button" class="btn amber" id="btnNuevoCtr">+ Nuevo contratista</button>' + (l.length ? l.map((x)=> {
+    p.innerHTML = (l.length ? l.map((x)=> {
       const e = x.estado === 'INACTIVO' ? { clase: 'gris', texto: 'Inactivo' } : estadoFila(x), gente = personasDe(x.titulo);
       return '<button type="button" class="item ' + e.clase + '" data-id="' + esc(x.id) + '"><div class="fila"><div><div class="t">' + esc(x.titulo) + '</div>' +
         '<div class="m">' + esc([x.resumen.nit && 'NIT ' + x.resumen.nit, x.resumen.servicio].filter(Boolean).join(' · ')) + '</div>' +
         '<div class="m">' + gente.length + ' persona(s) en Personal habilitado' + (x.resumen.venceDocs ? ' · próximo vencimiento ' + esc(UI.corta(x.resumen.venceDocs)) : '') + (x.resumen._adj ? ' · 📎 ' + (Number(x.resumen._adj) || 0) : '') + '</div>' +
         (x.pendiente ? '<div class="m"><span class="pend">⏳ pendiente de enviar</span></div>' : '') + '</div><span class="chip ' + e.clase + '">' + esc(e.texto) + '</span></div></button>';
     }).join('') : '<div class="empty">Todavía no hay contratistas registrados.</div>');
-    $('btnNuevoCtr').addEventListener('click', ()=> abrirCtr(null));
   } else {
     const l = de('ingreso').sort((a, b)=> String(b.fecha).localeCompare(String(a.fecha)));
-    p.innerHTML = '<button type="button" class="btn amber" id="btnNuevoIng">+ Registrar un ingreso a obra</button>' + (l.length ? l.map((x)=> {
+    p.innerHTML = (l.length ? l.map((x)=> {
       const c = /^NO/.test(x.estado) ? 'mal' : /OBSERV|PARCIAL/.test(x.estado) ? 'pronto' : 'ok';
       return '<button type="button" class="item ' + c + '" data-ing="' + esc(x.id) + '"><div class="fila"><div><div class="t">' + esc(x.titulo) + '</div>' +
         '<div class="m">' + esc(UI.corta(x.fecha)) + (x.resumen.sitio ? ' · ' + esc(x.resumen.sitio) : '') + ' · ' + (Number(x.resumen.autorizadas) || 0) + ' de ' + (Number(x.resumen.personas) || 0) + ' persona(s) autorizadas</div>' +
         (x.resumen.trabajo ? '<div class="m">' + esc(x.resumen.trabajo) + '</div>' : '') + '</div><span class="chip ' + c + '">' + esc(x.estado) + '</span></div></button>';
     }).join('') : '<div class="empty">Sin ingresos registrados.</div>');
-    $('btnNuevoIng').addEventListener('click', ()=> nuevoIngreso(''));
   }
 }
+$('btnNuevoCtr').addEventListener('click', ()=> abrirCtr(null));
+$('btnNuevoIng').addEventListener('click', ()=> nuevoIngreso(''));
 $('panel').addEventListener('click', (e)=>{
   const b = e.target.closest('[data-id]'); if (b) { abrirCtr(b.dataset.id); return; }
   const g = e.target.closest('[data-ing]'); if (g) verIngreso(g.dataset.ing);
@@ -195,6 +210,7 @@ async function abrirCtr(id){
   $('cTitulo').textContent = actual.nombre || 'Nuevo contratista';
   $('cDatos').innerHTML = Registros.form(CAMPOS_CTR, actual, prefC);
   Registros.activar($('cDatos'));
+  const nitEl = document.getElementById(prefC + 'nit'); nitEl.addEventListener('input', ayudaNit); ayudaNit();
   pintarDocs(); pintarPersonal();
   const ev = actual.nuevo ? null : evaluacionDe(actual);
   $('cEval').hidden = !ev;
@@ -212,27 +228,84 @@ async function abrirCtr(id){
 function leerDocs(){
   const out = {};
   DOCS.forEach((d)=>{
-    const f = $('dF_' + d.k).value, v = $('dV_' + d.k).value, na = $('dN_' + d.k).checked;
-    if (f || v || na) out[d.k] = { fecha: f, vence: v, noAplica: na };
+    const f = $('dF_' + d.k).value, v = $('dV_' + d.k).value, na = $('dN_' + d.k).classList.contains('on');
+    if (f || v || na) out[d.k] = { fecha: na ? '' : f, vence: na ? '' : v, noAplica: na };
   });
   return out;
+}
+/** Error de las fechas de un documento ('' si están bien): expedición no futura y vencimiento después de la expedición. */
+function errorDoc(k){
+  if ($('dN_' + k).classList.contains('on')) return {};
+  const f = $('dF_' + k).value, v = $('dV_' + k).value, h = UI.hoy();
+  if (f && Valida.fecha(f)) return { el: $('dF_' + k), e: 'Expedido: ' + Valida.fecha(f) };
+  if (f && f > h) return { el: $('dF_' + k), e: 'Expedido: no puede ser posterior a hoy' };
+  if (v && Valida.fecha(v)) return { el: $('dV_' + k), e: 'Vence: ' + Valida.fecha(v) };
+  if (f && v && v < f) return { el: $('dV_' + k), e: 'Vence: no puede ser antes de la expedición' };
+  return {};
+}
+/** Aviso debajo de cada documento: vencido, por vencer, error de fechas o marcado como no aplica. */
+function avisoDoc(d){
+  const fila = $('cDocs').querySelector('[data-doc="' + d.k + '"]'), av = fila.querySelector('[data-av]'), na = $('dN_' + d.k).classList.contains('on');
+  const v = $('dV_' + d.k).value, h = UI.hoy(), err = errorDoc(d.k);
+  fila.classList.toggle('no-aplica', na);
+  let t = '', c = '';
+  if (na) { t = 'Marcado como «No aplica» para este contratista.'; c = 'gris'; }
+  else if (err.e) { t = err.e; c = 'mal'; }
+  else if (v && v < h) { t = 'Vencido desde el ' + UI.corta(v) + ': no puede ingresar hasta renovarlo.'; c = 'mal'; }
+  else if (v && v <= Festivos.sumarDias(h, 15)) { t = 'Vence el ' + UI.corta(v) + ' (en ' + UI.cuandoTexto(v) + ').'; c = 'pronto'; }
+  else if (!v && !$('dF_' + d.k).value && !d.opcional) { t = 'Falta: escribe la fecha de expedición.'; c = 'pronto'; }
+  av.textContent = t; av.className = 'doc-av ' + c;
 }
 function pintarDocs(){
   const docs = actual.documentos || {}, adj = (actual.adjuntos || []).filter((a)=> !a.retirado), e = estadoDocs(docs);
   $('cSub').textContent = (actual.nuevo ? 'Escribe los datos y guarda; luego adjunta los soportes.' : e.texto + (e.vencidos.length ? ': ' + e.vencidos.join(', ') : ''));
   $('cDocs').innerHTML = DOCS.map((d)=>{
     const x = docs[d.k] || {}, c = x.noAplica ? 'gris' : !x.fecha && !x.vence ? (d.opcional ? 'gris' : 'mal') : UI.semaforo(x.vence, 15), n = adj.filter((a)=> a.ref === d.k).length;
-    return '<div class="docrow"><div class="dt"><span>' + esc(d.n) + (d.opcional ? ' <small style="color:var(--muted);font-weight:500;">(si aplica)</small>' : '') + '</span><span class="chip ' + c + '">' +
+    return '<div class="docrow' + (x.noAplica ? ' no-aplica' : '') + '" data-doc="' + d.k + '"><div class="dt"><span>' + esc(d.n) + (d.opcional ? ' <small style="color:var(--muted);font-weight:500;">(si aplica)</small>' : '') + '</span><span class="chip ' + c + '">' +
       (x.noAplica ? 'No aplica' : !x.fecha && !x.vence ? 'Falta' : !x.vence ? 'Registrado' : x.vence < UI.hoy() ? 'Vencido' : c === 'pronto' ? 'Por vencer' : 'Vigente') + (n ? ' · 📎' + n : '') + '</span></div>' +
-      '<div class="grid3"><div><label for="dF_' + d.k + '">Expedido</label><input type="date" id="dF_' + d.k + '" data-meses="' + (d.meses || 0) + '" data-k="' + d.k + '" value="' + esc(x.fecha || '') + '"></div>' +
-      '<div><label for="dV_' + d.k + '">Vence' + (d.meses ? ' (' + d.meses + (d.meses === 1 ? ' mes' : ' meses') + ')' : '') + '</label><input type="date" id="dV_' + d.k + '" value="' + esc(x.vence || '') + '"></div>' +
-      '<label class="na"><input type="checkbox" id="dN_' + d.k + '"' + (x.noAplica ? ' checked' : '') + '> No aplica</label></div></div>';
+      '<div class="seg-btn doc-ap" role="group" aria-label="¿Aplica a este contratista?"><button type="button" data-ap="1" class="' + (x.noAplica ? '' : 'on') + '" aria-pressed="' + !x.noAplica + '">Aplica</button>' +
+        '<button type="button" data-ap="0" data-v="No aplica" id="dN_' + d.k + '" class="' + (x.noAplica ? 'on' : '') + '" aria-pressed="' + !!x.noAplica + '">No aplica</button></div>' +
+      '<div class="doc-fechas"><div><label for="dF_' + d.k + '">Expedido</label><input type="date" id="dF_' + d.k + '" data-meses="' + (d.meses || 0) + '" data-k="' + d.k + '" max="' + UI.hoy() + '" value="' + esc(x.fecha || '') + '"></div>' +
+      '<div><label for="dV_' + d.k + '">Vence' + (d.meses ? ' (' + d.meses + (d.meses === 1 ? ' mes' : ' meses') + ')' : '') + '</label><input type="date" id="dV_' + d.k + '" data-k="' + d.k + '" value="' + esc(x.vence || '') + '"></div></div>' +
+      '<div class="doc-av" data-av role="status"></div></div>';
   }).join('');
+  DOCS.forEach(avisoDoc);
   // Al poner la expedición, el vencimiento se calcula (si no se escribió a mano).
   $('cDocs').querySelectorAll('input[data-meses]').forEach((i)=> i.addEventListener('change', ()=>{
     const m = Number(i.dataset.meses), v = $('dV_' + i.dataset.k);
     if (m && i.value && (!v.value || v.dataset.auto === '1')) { v.value = Festivos.sumarDias(Registros.sumarMeses(i.value, m), -1); v.dataset.auto = '1'; }
   }));
+}
+$('cDocs').addEventListener('change', (e)=> { const k = e.target.dataset && e.target.dataset.k; const d = k && DOCS.find((x)=> x.k === k); if (d) avisoDoc(d); });
+$('cDocs').addEventListener('click', (e)=> {
+  const b = e.target.closest('[data-ap]'); if (!b) return;
+  const fila = b.closest('[data-doc]'), d = DOCS.find((x)=> x.k === fila.dataset.doc);
+  fila.querySelectorAll('[data-ap]').forEach((x)=> { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); });
+  avisoDoc(d);
+});
+/* NIT: dígito de verificación de la DIAN (pesos 3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71
+   de derecha a izquierda; residuo módulo 11: 0 y 1 quedan igual, si no 11 − residuo). */
+function nitDV(base){
+  const P = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71], d = String(base).split('').reverse();
+  const r = d.reduce((s, x, i)=> s + Number(x) * P[i], 0) % 11;
+  return r > 1 ? 11 - r : r;
+}
+/** «900.123.456-7» → { nit: '900123456-7' } o { e: motivo }. Sin dígito de verificación, se calcula. */
+function revisarNit(v){
+  const t = String(v || '').replace(/[\s.,]/g, ''); if (!t) return { nit: '' };
+  const m = /^(\d+)(?:-(\d))?$/.exec(t);
+  if (!m) return { e: 'solo números y, al final, guion y el dígito de verificación (ej. 900123456-7)' };
+  if (m[1].length < 6 || m[1].length > 10) return { e: 'el número va de 6 a 10 dígitos antes del guion (tiene ' + m[1].length + ')' };
+  const dv = nitDV(m[1]);
+  if (m[2] != null && Number(m[2]) !== dv) return { e: 'el dígito de verificación no coincide: para ' + m[1] + ' es ' + dv + ' (revisa el RUT)' };
+  return { nit: m[1] + '-' + dv, calculado: m[2] == null };
+}
+const baseNit = (n)=> { const m = /^(\d+)(?:-\d)?$/.exec(String(n || '').replace(/[\s.,]/g, '')); return m ? m[1] : ''; };
+function ayudaNit(){
+  const el = document.getElementById(prefC + 'nit'); if (!el) return;
+  const f = el.closest('.field'); let a = f.querySelector('.nit-dv'); const r = revisarNit(el.value);
+  if (!a) { a = document.createElement('div'); a.className = 'nit-dv'; f.appendChild(a); }
+  a.textContent = r.nit && r.calculado ? 'Dígito de verificación: ' + r.nit.slice(-1) + ' → se guarda ' + r.nit : r.nit ? '✓ Dígito de verificación correcto' : '';
 }
 function pintarPersonal(){
   const gente = actual.nuevo ? [] : personasDe(actual.nombre);
@@ -243,8 +316,16 @@ function pintarPersonal(){
   }).join('') : '<div class="ayuda">' + (actual.nuevo ? 'Guarda primero el contratista.' : 'No hay personas con la empresa «' + esc(actual.nombre) + '» en Personal habilitado. En su ficha, escribe el nombre de la empresa igual que aquí.') + '</div>';
 }
 $('btnGuardarCtr').addEventListener('click', async ()=>{
-  const v = Object.assign({}, actual, Registros.leer(CAMPOS_CTR, $('cDatos'), prefC));
-  const f = Registros.faltan(CAMPOS_CTR, v); if (f.length) { $('msgCtr').textContent = 'Falta: ' + f.join(', ') + '.'; return; }
+  const v = Object.assign({}, actual, Registros.leer(CAMPOS_CTR, $('cDatos'), prefC)), el = (k)=> document.getElementById(prefC + k);
+  // Qué falta o está mal: cada campo se marca y se nombra en el resumen.
+  const rn = revisarNit(v.nit), tel = String(v.telefono || '').replace(/\D/g, '');
+  const otro = rn.nit && de('contratista').find((x)=> x.id !== actual.id && baseNit(x.resumen.nit) === baseNit(rn.nit));
+  const reglas = [{ el: el('nombre'), etiqueta: 'Razón social', error: ()=> !v.nombre ? 'falta' : Valida.texto(v.nombre) },
+    { el: el('nit'), etiqueta: 'NIT', error: ()=> rn.e || (otro ? 'ya está registrado para ' + otro.titulo : '') },
+    { el: el('telefono'), etiqueta: 'Teléfono', error: ()=> tel && (tel.length < 7 || tel.length > 10) ? 'escribe un teléfono de 7 a 10 dígitos' : '' }];
+  DOCS.forEach((d)=> { const x = errorDoc(d.k); if (x.e) reglas.push({ el: x.el, etiqueta: d.n.split(/[(:]/)[0].trim(), error: x.e.replace(/^(Expedido|Vence): /, (m0)=> m0.toLowerCase()) }); });
+  if (Valida.revisar($('scrCtr'), reglas, $('msgCtr')).length) { DOCS.forEach(avisoDoc); return; }
+  if (rn.nit) { v.nit = rn.nit; el('nit').value = rn.nit; }
   v.documentos = leerDocs();
   const e = estadoDocs(v.documentos);
   Object.assign(v, { docsFaltan: e.faltan.length, docsVencidos: e.vencidos.length, venceDocs: e.vence, fechaRevision: UI.hoy() });
@@ -253,9 +334,11 @@ $('btnGuardarCtr').addEventListener('click', async ()=>{
   const r = await Registros.guardar('contratista', id, v, actual.nuevo ? 0 : actual.version);
   $('btnGuardarCtr').disabled = false;
   if (typeof r === 'string') { $('msgCtr').textContent = r; return; }
-  $('msgCtr').textContent = r.enCola ? '⏳ Guardado en el equipo; se envía al volver la señal.' : '✓ Guardado';
+  const pend = e.faltan.length || e.vencidos.length ? ' Para autorizar ingresos ' + (e.faltan.length ? 'falta: ' + e.faltan.join(' · ') : '') + (e.faltan.length && e.vencidos.length ? '; y ' : '') + (e.vencidos.length ? 'está vencido: ' + e.vencidos.join(' · ') : '') + '.' : '';
+  const txt = (r.enCola ? '⏳ Guardado en el equipo; se envía al volver la señal.' : '✓ Guardado.') + pend;
   await cargar();
-  if (!r.enCola) abrirCtr(id); else { actual = Object.assign(v, { id }); }
+  if (!r.enCola) await abrirCtr(id); else { actual = Object.assign(v, { id }); }
+  $('msgCtr').innerHTML = pend ? '<div class="aviso amar" style="text-align:left;margin:0 0 8px;">' + esc(txt) + '</div>' : esc(txt);
 });
 $('btnPdfCtr').addEventListener('click', ()=>{
   const v = Object.assign({}, actual, Registros.leer(CAMPOS_CTR, $('cDatos'), prefC)); v.documentos = leerDocs();
@@ -303,7 +386,8 @@ function nuevoIngreso(ctrId){
   $('iCtr').addEventListener('change', ()=> { ing.contratistaId = $('iCtr').value; ing.personas = []; evaluar(); });
   $('iTareas').addEventListener('click', (e)=>{ const b = e.target.closest('button[data-v]'); if (!b) return; b.classList.toggle('on'); ing.tareas = [...$('iTareas').querySelectorAll('button.on')].map((x)=> x.dataset.v); evaluar(); });
   $('iAgregar').addEventListener('click', ()=>{
-    const ced = $('iCed').value.trim(); if (!Habilitacion.clave(ced)) return;
+    const ced = Valida.limpiarCedula($('iCed').value), ec = Valida.cedula(ced);
+    if (ec) { Valida.revisar($('iCuerpo'), [{ el: $('iCed'), etiqueta: 'Cédula', error: ec === 'falta' ? 'escribe la cédula de la persona' : ec }]); return; }
     if (!ing.personas.some((p)=> Habilitacion.clave(p.cedula) === Habilitacion.clave(ced))) { const t = trabajadores.find((x)=> Habilitacion.clave(x.cedula) === Habilitacion.clave(ced)); ing.personas.push({ cedula: ced, nombre: t ? t.nombre : '', va: true }); }
     $('iCed').value = ''; evaluar();
   });
@@ -354,7 +438,10 @@ function resultado(){
 async function guardarIngreso(){
   resultado();
   const c = ctrDe(ing.contratistaId), van = ing.personas.filter((p)=> p.va);
-  if (!c || !van.length) { $('iMsg').textContent = 'Elige el contratista y marca quién ingresa.'; return; }
+  if (Valida.revisar($('iCuerpo'), [{ el: $('iFecha'), etiqueta: 'Fecha', error: ()=> Valida.fecha($('iFecha').value) },
+    { el: $('iCtr'), etiqueta: 'Contratista', error: ()=> c ? '' : 'elige el contratista' },
+    { el: $('iPersonas'), etiqueta: 'Personas que ingresan', error: ()=> !c || van.length ? '' : 'marca quién ingresa' },
+    { el: $('iAut'), etiqueta: 'Autoriza', error: ()=> $('iAut').value.trim() ? '' : 'falta quién autoriza' }], $('iMsg')).length) return;
   if (!$('iAut').value.trim()) { $('iMsg').textContent = 'Falta quién autoriza.'; return; }
   const firma = UI.firma('fIng'); if (!firma) { $('iMsg').textContent = 'Falta la firma de quien autoriza.'; return; }
   const e = estadoDocs(docCtr && docCtr.d ? docCtr.d.documentos : {});

@@ -12,7 +12,7 @@
 .seg{display:inline-block;font-weight:800;font-size:11px;border-radius:6px;padding:2px 7px;margin-right:4px;background:#151b24;color:#fff;}
 .seg.s7{background:#2f7d55;} .seg.s21{background:#b07a00;} .seg.s60{background:#9c2f22;}
 .filtro{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
-.filtro button{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font:600 13px inherit;font-family:inherit;cursor:pointer;}
+.filtro button{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;min-height:44px;font:600 13px inherit;font-family:inherit;cursor:pointer;}
 .filtro button.on{background:#151b24;color:#fff;border-color:#151b24;}
 .tar{border-bottom:1px dashed #e6eaee;padding:9px 0;font-size:13.5px;}
 .tar .tt{font-weight:700;line-height:1.35;}
@@ -21,6 +21,19 @@
 .std{display:flex;gap:8px;align-items:flex-start;border-bottom:1px dashed #e6eaee;padding:7px 0;font-size:13px;line-height:1.35;}
 .std input{width:20px;height:20px;flex:0 0 20px;}
 .std small{display:block;color:var(--muted);font-size:11.5px;}
+/* v107: tarjeta de cliente con «Asignar tarea» y avance de las tareas */
+.cli{background:#fff;border:1px solid var(--line);border-left:5px solid #c8d0d6;border-radius:12px;margin-bottom:9px;overflow:hidden;}
+.cli.ok{border-left-color:var(--ok);} .cli.pronto{border-left-color:var(--amber);} .cli.mal{border-left-color:var(--mal);}
+.cli .item{border:0;border-radius:0;margin:0;padding-bottom:6px;}
+.cli-acc{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:0 12px 11px;}
+.cli-acc .btn{margin:0;min-height:44px;font-size:13.5px;padding:8px 10px;}
+.barra-av{height:8px;border-radius:5px;background:#e6eaee;overflow:hidden;margin:6px 0 2px;}
+.barra-av i{display:block;height:100%;background:var(--ok);border-radius:5px;}
+.res-tar{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px;}
+.tar .acc .btn-mini,#cTar .aviso .btn-mini{min-height:44px;padding:0 14px;margin-left:0;}
+.tar .av{font-size:12px;color:#334;margin-top:3px;line-height:1.4;overflow-wrap:anywhere;}
+.como{font-size:13px;line-height:1.45;}
+#cTar > .m{font-size:13px;line-height:1.45;}
 </style>
 </head>
 <body>
@@ -33,6 +46,12 @@
     <p>Tus empresas cliente por tamaño y riesgo (7, 21 o 60 estándares), las tareas que les dejas y su avance</p></div></div>
   </div>
   <div id="avisoSrv"></div><div id="avisoCopia"></div>
+  <div class="acciones-top">
+    <button type="button" class="btn amber" id="btnNuevo">+ Nuevo cliente</button>
+    <button type="button" class="btn ghost" id="btnSync">Traer el avance de todos</button>
+    <button type="button" class="btn ghost" id="btnPdf">Estado de mis clientes (PDF)</button>
+  </div>
+  <div class="aviso info como"><b>Para dejarle una tarea a una empresa:</b> toca «Asignar tarea» en su tarjeta. Queda en su plan de acción, en los pendientes del inicio y en el correo del lunes de quien la recibe; aquí ves si está abierta, vencida o cerrada. <a href="ayuda.html#asesor">Cómo funciona</a></div>
   <div class="kpis" id="kpis"></div>
   <div class="filtro" id="fGrupo">
     <button type="button" class="on" data-g="">Todos</button><button type="button" data-g="7">7 estándares</button><button type="button" data-g="21">21 estándares</button><button type="button" data-g="60">60 estándares</button>
@@ -40,16 +59,14 @@
   <div class="grid2"><select id="fRiesgo" class="buscar" style="margin:0;"><option value="">Todas las clases de riesgo</option><option>I</option><option>II</option><option>III</option><option>IV</option><option>V</option></select>
     <input type="search" class="buscar" id="buscar" placeholder="Buscar cliente" style="margin:0;"></div>
   <div id="lista" style="margin-top:10px;"><div class="empty">Cargando…</div></div>
-  <button type="button" class="btn amber" id="btnNuevo">+ Nuevo cliente</button>
-  <button type="button" class="btn ghost" id="btnSync">🔄 Traer el avance de todos los clientes</button>
-  <button type="button" class="btn ghost" id="btnPdf">🖨️ Estado de mis clientes (PDF)</button>
-  <div class="version-portal">Portal SSTA · versión v106</div>
+  <div class="version-portal">Portal SSTA · versión v107</div>
 </div>
 <div class="screen" id="scrCli"></div>
 </div>
 <script src="empresa.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
+<script src="valida.js"></script>
 <script src="sgsst-ui.js"></script>
 <script src="registros.js"></script>
 <script src="auditorias-plantillas.js"></script>
@@ -134,20 +151,26 @@ function pintar(){
   const h = UI.hoy(), act = de('cliente').filter((x)=> x.estado !== 'INACTIVO');
   const cuenta = (g)=> act.filter((x)=> Number(x.resumen.grupo0312) === g).length;
   const desact = act.filter((x)=> x.resumen.versionServidor && x.resumen.versionServidor !== VERSION_PORTAL_WEB).length;
-  const venc = act.reduce((a, x)=> a + (Number(x.resumen.tareasVencidas) || 0), 0), visV = act.filter((x)=> x.vence && x.vence < h).length;
+  const venc = act.reduce((a, x)=> a + (Number(x.resumen.tareasVencidas) || 0), 0), abT = act.reduce((a, x)=> a + (Number(x.resumen.tareasAbiertas) || 0), 0), visV = act.filter((x)=> x.vence && x.vence < h).length;
   $('kpis').innerHTML = '<div class="kpi"><div class="v">' + act.length + '</div><div class="n">clientes activos</div><div class="f">' + segHtml(7) + cuenta(7) + ' · ' + segHtml(21) + cuenta(21) + ' · ' + segHtml(60) + cuenta(60) + '</div></div>' +
-    '<div class="kpi ' + (venc ? 'mal' : 'ok') + '"><div class="v">' + venc + '</div><div class="n">tareas vencidas en los clientes</div><div class="f">según la última sincronización</div></div>' +
+    '<div class="kpi ' + (venc ? 'mal' : 'ok') + '"><div class="v">' + venc + '</div><div class="n">tareas vencidas en los clientes</div><div class="f">' + abT + ' abiertas · según la última sincronización</div></div>' +
     '<div class="kpi ' + (visV ? 'mal' : 'ok') + '"><div class="v">' + visV + '</div><div class="n">visitas atrasadas</div></div>' +
     (act.some((x)=> x.resumen.versionServidor) ? '<div class="kpi ' + (desact ? 'pronto' : 'ok') + '"><div class="v">' + desact + '</div><div class="n">servidores por actualizar</div><div class="f">portal ' + esc(VERSION_PORTAL_WEB) + ' · herramientas/actualizar-servidores.js</div></div>' : '');
   const q = UI.norm($('buscar').value).trim(), rg = $('fRiesgo').value;
   const l = de('cliente').filter((x)=> (!fG || String(x.resumen.grupo0312) === fG) && (!rg || x.resumen.claseRiesgo === rg) && (!q || UI.norm(x.titulo + ' ' + x.resumen.nit + ' ' + x.resumen.ciudad).includes(q)))
     .sort((a, b)=> (a.estado === 'INACTIVO') - (b.estado === 'INACTIVO') || (Number(b.resumen.tareasVencidas) || 0) - (Number(a.resumen.tareasVencidas) || 0) || String(a.titulo).localeCompare(String(b.titulo)));
   $('lista').innerHTML = l.length ? l.map((x)=> { const s = x.resumen, c = x.estado === 'INACTIVO' ? 'gris' : Number(s.tareasVencidas) ? 'mal' : x.vence && x.vence < h ? 'pronto' : 'ok';
-    return '<button type="button" class="item ' + c + '" data-id="' + esc(x.id) + '"><div class="fila"><div><div class="t">' + segHtml(Number(s.grupo0312) || 60) + esc(x.titulo) + '</div>' +
-      '<div class="m">' + esc([s.trabajadores ? s.trabajadores + ' trabajadores' : '', s.claseRiesgo ? 'riesgo ' + s.claseRiesgo : '', s.ciudad].filter(Boolean).join(' · ')) + '</div>' +
-      '<div class="m">' + (s.sincronizado ? 'Tareas: ' + (Number(s.tareasAbiertas) || 0) + ' abiertas, ' + (Number(s.tareasVencidas) || 0) + ' vencidas' + (s.puntaje !== '' && s.puntaje != null ? ' · autoevaluación ' + esc(String(s.puntaje).replace('.', ',')) + '%' : '') + ' · al ' + esc(new Date(s.sincronizado).toLocaleDateString('es-CO')) : 'Sin sincronizar') +
-      (x.vence ? ' · visita ' + esc(UI.corta(x.vence)) : '') + (s.versionServidor && s.versionServidor !== VERSION_PORTAL_WEB ? ' · <b style="color:#7a5800;">servidor ' + esc(s.versionServidor) + '</b>' : '') + '</div></div><span class="chip ' + c + '">' + (x.estado === 'INACTIVO' ? 'Inactivo' : Number(s.tareasVencidas) ? 'Atrasado' : 'Al día') + '</span></div></button>'; }).join('')
-    : '<div class="empty">' + (de('cliente').length ? 'Ningún cliente con ese filtro.' : 'Todavía no hay clientes. Agrega el primero.') + '</div>';
+    const ab = Number(s.tareasAbiertas) || 0, ve = Number(s.tareasVencidas) || 0, ce = Number(s.tareasCerradas) || 0, tot = ab + ce, av = tot ? Math.round(ce * 100 / tot) : 0;
+    return '<div class="cli ' + c + '"><button type="button" class="item" data-id="' + esc(x.id) + '"><div class="fila"><div style="flex:1;min-width:0;"><div class="t">' + segHtml(Number(s.grupo0312) || 60) + esc(x.titulo) + '</div>' +
+      '<div class="m">' + esc([s.trabajadores ? s.trabajadores + ' trabajadores' : '', s.claseRiesgo ? 'riesgo ' + s.claseRiesgo : '', s.ciudad, s.contacto ? 'responsable: ' + s.contacto : ''].filter(Boolean).join(' · ')) + '</div>' +
+      (s.sincronizado ? '<div class="m"><b>Tareas:</b> ' + ab + ' abierta' + (ab === 1 ? '' : 's') + (ve ? ' (' + ve + ' vencida' + (ve === 1 ? '' : 's') + ')' : '') + (s.tareasCerradas !== undefined && s.tareasCerradas !== '' ? ' · ' + ce + ' cerrada' + (ce === 1 ? '' : 's') : '') +
+        (s.puntaje !== '' && s.puntaje != null ? ' · autoevaluación ' + esc(String(s.puntaje).replace('.', ',')) + '%' : '') + ' · al ' + esc(new Date(s.sincronizado).toLocaleDateString('es-CO')) + '</div>' +
+        (tot && s.tareasCerradas !== undefined && s.tareasCerradas !== '' ? '<div class="barra-av" role="img" aria-label="Avance de las tareas: ' + av + ' %"><i style="width:' + av + '%"></i></div><div class="m">Avance de las tareas: ' + av + ' %</div>' : '')
+        : '<div class="m">Tareas: sin sincronizar (ábrelo o toca «Traer el avance de todos»)</div>') +
+      '<div class="m">' + (x.vence ? 'Visita ' + esc(UI.corta(x.vence)) : '') + (s.versionServidor && s.versionServidor !== VERSION_PORTAL_WEB ? (x.vence ? ' · ' : '') + '<b style="color:#7a5800;">servidor ' + esc(s.versionServidor) + '</b>' : '') + '</div></div><span class="chip ' + c + '">' + (x.estado === 'INACTIVO' ? 'Inactivo' : ve ? 'Atrasado' : 'Al día') + '</span></div></button>' +
+      (x.estado === 'INACTIVO' ? '' : '<div class="cli-acc"><button type="button" class="btn amber" data-asig="' + esc(x.id) + '">Asignar tarea</button><button type="button" class="btn ghost" data-id="' + esc(x.id) + '">Ver sus tareas</button></div>') + '</div>'; }).join('')
+    : '<div class="empty">' + (de('cliente').length ? 'Ningún cliente con ese filtro.' : 'Todavía no hay clientes. Agrega el primero con «+ Nuevo cliente».') + '</div>';
+  $('lista').querySelectorAll('[data-asig]').forEach((b)=> b.addEventListener('click', ()=> abrir(b.dataset.asig, true)));
   $('lista').querySelectorAll('[data-id]').forEach((b)=> b.addEventListener('click', ()=> abrir(b.dataset.id)));
 }
 $('fGrupo').addEventListener('click', (e)=> { const b = e.target.closest('[data-g]'); if (!b) return; fG = b.dataset.g; $('fGrupo').querySelectorAll('button').forEach((x)=> x.classList.toggle('on', x === b)); pintar(); });
@@ -167,29 +190,36 @@ function editarCliente(d){
 $('btnNuevo').addEventListener('click', ()=> editarCliente({ id: SGSST.nuevoId('CLI'), nuevo: true, claseRiesgo: 'I', modo: 'unico', estado: 'ACTIVO' }));
 
 /* ── Un cliente: su segmento, sus tareas y las visitas ── */
-let tareas = [], autoeval = null;
-async function abrir(id){
+let tareas = [], autoeval = null, respCli = [], fTar = 'abiertas';
+/** Abre un cliente. Con `asignar`, deja abierta de una vez la ventana para asignarle una tarea. */
+async function abrir(id, asignar){
   const d = await Registros.abrir(id); if (!d) return;
-  actual = d; tareas = []; autoeval = null; perfilCli = null;
+  actual = d; tareas = []; autoeval = null; perfilCli = null; respCli = []; fTar = 'abiertas';
   const g = Number(d.grupo0312) || grupo0312(d.trabajadores, d.claseRiesgo);
   const s = $('scrCli');
   s.innerHTML = '<div class="hdr"><a class="back" href="#" data-volver>← Volver a los clientes</a><div class="eyebrow">' + esc(d.nit ? 'NIT ' + d.nit : d.id) + '</div><h1>' + esc(d.nombre) + '</h1><p>' + segHtml(g) + esc([d.trabajadores + ' trabajadores', 'riesgo ' + d.claseRiesgo, d.ciudad].filter(Boolean).join(' · ')) + '</p></div>' +
+    '<div class="acciones-top"><button type="button" class="btn ghost" id="cEditar">Datos del cliente</button>' + (sitioCli(d) ? '<a class="btn ghost" href="' + esc(sitioCli(d)) + '" target="_blank" rel="noopener">Abrir su portal ↗</a>' : '') +
+      '<button type="button" class="btn ghost" id="cPdf">Informe para el cliente (PDF)</button></div>' +
     '<div class="aviso info">Le aplican ' + esc(UI.textoGrupo(g)) + '.</div>' +
-    '<div class="card"><h2>Tareas que le dejaste</h2><div id="cTar"><div class="status-msg">' + (Cli.url(d) ? 'Trayendo del portal del cliente…' : '') + '</div></div>' +
-      (Cli.url(d) ? '<button type="button" class="btn amber" id="cNueva">+ Dejar una tarea</button><button type="button" class="btn ghost" id="cStd">📦 Tareas de sus estándares (' + g + ')</button>' : '<div class="aviso amar">Sin servidor del cliente: agrega la URL de su servidor y su clave del portal para dejarle tareas.</div>') + '</div>' +
-    '<div class="card"><h2>Visitas</h2><div id="cVis"></div><div class="grid2"><div class="field"><label>Fecha</label><input type="date" id="vF" value="' + UI.hoy() + '"></div><div class="field"><label>Próxima visita</label><input type="date" id="vP" value="' + esc(Festivos.sumarDias(UI.hoy(), 30)) + '"></div></div>' +
-      '<div class="field"><textarea id="vN" placeholder="Qué se revisó, compromisos…"></textarea></div><button type="button" class="btn ghost" id="vOk">Anotar visita</button></div>' +
-    '<div class="fila-btn"><button type="button" class="btn ghost" id="cEditar">✏️ Datos del cliente</button>' + (sitioCli(d) ? '<a class="btn ghost" href="' + esc(sitioCli(d)) + '" target="_blank" rel="noopener">↗ Abrir su portal</a>' : '') + '</div>' +
-    '<button type="button" class="btn ghost" id="cPdf">🖨️ Informe para el cliente (PDF)</button><div id="cHist"></div><div class="status-msg" id="cMsg"></div>';
+    '<div class="card"><h2>Tareas que le asignaste</h2>' +
+      (Cli.url(d) ? '<div class="acciones-top"><button type="button" class="btn amber" id="cNueva">+ Asignar tarea</button><button type="button" class="btn ghost" id="cStd">Tareas de sus ' + g + ' estándares</button></div>' : '') +
+      '<div id="cTar"><div class="status-msg">' + (Cli.url(d) ? 'Trayendo del portal del cliente…' : '') + '</div></div>' +
+      (Cli.url(d) ? '' : '<div class="aviso amar">Para asignarle tareas falta conectar su portal: en «Datos del cliente» escribe la URL de su servidor (/exec) y la clave de su portal. <button type="button" class="btn-mini" id="cConectar">Conectar ahora</button></div>') + '</div>' +
+    '<div class="card"><h2>Visitas</h2><div id="cVis"></div><div class="grid2"><div class="field"><label for="vF">Fecha</label><input type="date" id="vF" value="' + UI.hoy() + '"></div><div class="field"><label for="vP">Próxima visita</label><input type="date" id="vP" value="' + esc(Festivos.sumarDias(UI.hoy(), 30)) + '"></div></div>' +
+      '<div class="field"><label for="vN">Qué se revisó y compromisos *</label><textarea id="vN" placeholder="Qué se revisó, compromisos…"></textarea></div><button type="button" class="btn ghost" id="vOk">Anotar visita</button><div class="status-msg" id="vMsg"></div></div>' +
+    '<div id="cHist"></div><div class="status-msg" id="cMsg"></div>';
   pintarVisitas();
   $('cEditar').addEventListener('click', ()=> editarCliente(actual));
+  if ($('cConectar')) $('cConectar').addEventListener('click', ()=> editarCliente(actual));
   $('vOk').addEventListener('click', anotarVisita);
   $('cPdf').addEventListener('click', pdfCliente);
   if ($('cNueva')) $('cNueva').addEventListener('click', ()=> nuevaTarea());
   if ($('cStd')) $('cStd').addEventListener('click', tareasEstandares);
   $('cHist').appendChild(UI.botonHistorial(d.id, d.nombre));
   show('scrCli');
-  if (Cli.url(d)) traerTareas();
+  if (!Cli.url(d)) { if (asignar) UI.toast('Primero conecta su portal (URL del servidor y clave) para poder asignarle tareas.', 'mal'); return; }
+  const listo = traerTareas();
+  if (asignar) { await listo; if (actual === d) nuevaTarea(); }
 }
 async function traerTareas(){
   const c = actual, cont = $('cTar');
@@ -205,29 +235,50 @@ async function traerTareas(){
   try { const pg = await Cli.get(c, { action: 'ping' }); versionServidor = (pg && pg.version) || (pg && pg.ok ? 'anterior a v99' : ''); } catch (e) {}
   const perfil = r.rows.find((x)=> x.tipo === 'empresa' && x.id === 'EMPRESA-PERFIL') || r.rows.find((x)=> x.tipo === 'empresa');
   perfilCli = perfil || null; actual.versionServidor = versionServidor || actual.versionServidor || '';
+  // A quién se le puede asignar (usuarios activos de esa empresa; servidores v107 o posteriores).
+  try { const rr = await Cli.get(c, { action: 'responsables' }); respCli = rr && rr.ok && Array.isArray(rr.usuarios) ? rr.usuarios : []; if (rr && rr.ok && rr.responsableSST) respCli.unshift({ nombre: rr.responsableSST, cargo: 'Responsable del SG-SST', rol: '' }); } catch (e) { respCli = []; }
+  if (actual !== c) return;
   pintarTareas(perfil);
   // Se guarda el resumen en tu panel (para la lista y el correo diario).
-  const h = UI.hoy(), ab = tareas.filter((x)=> x.estado !== 'CERRADA'), campos = { tareasAbiertas: ab.length, tareasVencidas: ab.filter((x)=> x.resumen.fechaCompromiso && x.resumen.fechaCompromiso < h).length,
+  const h = UI.hoy(), ab = tareas.filter((x)=> x.estado !== 'CERRADA'), campos = { tareasAbiertas: ab.length, tareasVencidas: ab.filter((x)=> x.resumen.fechaCompromiso && x.resumen.fechaCompromiso < h).length, tareasCerradas: tareas.length - ab.length,
     puntaje: autoeval ? Number(autoeval.resumen.puntaje) : '', sincronizado: new Date().toISOString(), versionServidor };
   await SGSST.enviar({ action: 'parche', tipo: 'cliente', id: c.id, campos });
   Object.assign(actual, campos);
+  const rw = rows.find((x)=> x.id === c.id); if (rw) Object.assign(rw.resumen, campos);   // la lista y los totales, al volver
+}
+const pl = (n, t)=> n + ' ' + t + (n === 1 ? '' : 's');
+/** Estado de una tarea para el asesor: [texto, color, grupo del filtro]. */
+function estTarea(x, h){
+  if (x.estado === 'CERRADA') return x.resumen.verificada ? ['Cerrada · verificada', 'ok', 'cerradas'] : ['Cerrada · por verificar', 'pronto', 'cerradas'];
+  if (x.resumen.fechaCompromiso && x.resumen.fechaCompromiso < h) return ['Vencida', 'mal', 'vencidas'];
+  return x.estado === 'EN PROCESO' ? ['Abierta · en proceso', 'azul', 'abiertas'] : ['Abierta', 'gris', 'abiertas'];
 }
 function pintarTareas(perfil){
-  const h = UI.hoy(), c = actual, g = Number(c.grupo0312);
+  perfil = perfil === undefined ? perfilCli : perfil;
+  const h = UI.hoy(), c = actual;
   const aviso = perfil && (Number(perfil.resumen.trabajadores) !== Number(c.trabajadores) || perfil.resumen.claseRiesgo !== c.claseRiesgo)
     ? '<div class="aviso amar">En su portal dice ' + esc(perfil.resumen.trabajadores) + ' trabajadores, riesgo ' + esc(perfil.resumen.claseRiesgo) + ' (le aplicarían ' + esc(perfil.resumen.grupo0312) + ' estándares). <button type="button" class="btn-mini" id="cUsarPerfil">Usar estos datos</button></div>' : '';
-  const est = (x)=> x.estado === 'CERRADA' ? (x.resumen.verificada ? ['Verificada', 'ok'] : ['Hecha: por verificar', 'pronto']) : x.resumen.fechaCompromiso && x.resumen.fechaCompromiso < h ? ['Vencida', 'mal'] : x.estado === 'EN PROCESO' ? ['En proceso', 'pronto'] : ['Pendiente', 'gris'];
   const pr = perfil ? perfil.resumen : {}, cs = pr.correoSST || '', ca = pr.correoAsesor || '';
-  const correos = '<div class="aviso ' + (cs ? 'info' : 'amar') + '" style="font-size:13px;">📧 ' + (cs ? 'Avisos por correo: las tareas nuevas y los recordatorios llegan a <b>' + esc(cs) + '</b>' + (ca ? '; tú recibes copia y el aviso cuando cierran una (' + esc(ca) + ')' : '') + '.' : 'Avisos por correo sin configurar: el cliente solo ve las tareas cuando entra a su portal.') +
+  const correos = '<div class="aviso ' + (cs ? 'info' : 'amar') + '" style="font-size:13px;">' + (cs ? 'Avisos por correo: las tareas nuevas y los recordatorios llegan a <b>' + esc(cs) + '</b>' + (ca ? '; tú recibes copia y el aviso cuando cierran una (' + esc(ca) + ')' : '') + '.' : 'Avisos por correo sin configurar: el cliente ve las tareas en su plan de acción y en sus pendientes del inicio, pero no le llega correo inmediato.') +
     ' <button type="button" class="btn-mini" id="cCorreos">' + (cs ? 'Cambiar' : 'Configurar') + '</button></div>';
+  const cuenta = { abiertas: 0, vencidas: 0, cerradas: 0 }; tareas.forEach((x)=> { cuenta[estTarea(x, h)[2]]++; });
+  const tot = tareas.length, av = tot ? Math.round(cuenta.cerradas * 100 / tot) : 0;
+  const vis = tareas.filter((x)=> fTar === 'todas' || estTarea(x, h)[2] === fTar || (fTar === 'abiertas' && estTarea(x, h)[2] === 'vencidas'));
+  const resumen = tot ? '<div class="res-tar"><span class="chip gris">' + pl(cuenta.abiertas + cuenta.vencidas, 'abierta') + '</span><span class="chip ' + (cuenta.vencidas ? 'mal' : 'ok') + '">' + pl(cuenta.vencidas, 'vencida') + '</span><span class="chip ok">' + pl(cuenta.cerradas, 'cerrada') + '</span></div>' +
+      '<div class="barra-av" role="img" aria-label="Avance: ' + av + ' %"><i style="width:' + av + '%"></i></div><div class="m" style="font-size:12px;color:var(--muted);margin-bottom:8px;">Avance: ' + cuenta.cerradas + ' de ' + tot + ' cerradas (' + av + ' %)</div>' +
+      '<div class="filtro" id="fTar" role="group" aria-label="Qué tareas ver">' + [['abiertas', 'Abiertas (' + (cuenta.abiertas + cuenta.vencidas) + ')'], ['vencidas', 'Vencidas (' + cuenta.vencidas + ')'], ['cerradas', 'Cerradas (' + cuenta.cerradas + ')'], ['todas', 'Todas']]
+        .map(([k, t])=> '<button type="button" data-ft="' + k + '"' + (fTar === k ? ' class="on"' : '') + ' aria-pressed="' + (fTar === k) + '">' + t + '</button>').join('') + '</div>' : '';
   $('cTar').innerHTML = (actual.versionServidor ? '<div style="margin-bottom:6px;">' + verChip(actual.versionServidor) + '</div>' : '') + aviso + correos + (autoeval ? '<div class="m" style="margin-bottom:6px;">Última autoevaluación: <b>' + esc(String(autoeval.resumen.puntaje).replace('.', ',')) + '%</b> · ' + esc(autoeval.resumen.valoracion || '') + ' · ' + esc(UI.corta(autoeval.resumen.fechaEjecucion)) + '</div>' : '<div class="m" style="margin-bottom:6px;">El cliente aún no tiene autoevaluación cerrada en su portal.</div>') +
-    (tareas.length ? tareas.map((x)=> { const e = est(x), s = x.resumen;
-      return '<div class="tar"><div class="tt">' + esc(s.accion) + ' <span class="chip ' + e[1] + '">' + e[0] + '</span></div><small>' + esc([s.responsable && '👤 ' + s.responsable, s.fechaCompromiso && (x.estado !== 'CERRADA' && s.fechaCompromiso < h ? 'venció ' : 'para el ') + UI.corta(s.fechaCompromiso), s.prioridad].filter(Boolean).join(' · ')) + '</small>' +
-        (s.hallazgo ? '<small>' + esc(s.hallazgo) + '</small>' : '') + (x.estado === 'CERRADA' && s.fechaCierre ? '<small>Cerrada el ' + esc(UI.corta(s.fechaCierre)) + (s.eficaz ? ' · eficaz: ' + esc(s.eficaz) : '') + '</small>' : '') +
-        '<div class="acc">' + (x.estado === 'CERRADA' && !s.verificada ? '<button type="button" class="btn-mini" data-ver="' + esc(x.id) + '">✓ Verificar</button>' : '') +
-        (x.estado === 'CERRADA' ? '<button type="button" class="btn-mini" style="background:#8a2a1c;" data-reabrir="' + esc(x.id) + '">Reabrir</button>' : '<button type="button" class="btn-mini" data-nota="' + esc(x.id) + '">Anotar</button>') + '</div></div>'; }).join('')
-      : '<div class="empty">Sin tareas todavía.</div>');
+    resumen + (vis.length ? vis.map((x)=> { const e = estTarea(x, h), s = x.resumen;
+      return '<div class="tar"><div class="tt">' + esc(s.accion) + ' <span class="chip ' + e[1] + '">' + e[0] + '</span></div><small>' + esc([s.responsable && 'Responsable: ' + s.responsable, s.fechaCompromiso && (x.estado !== 'CERRADA' && s.fechaCompromiso < h ? 'venció el ' : 'para el ') + UI.corta(s.fechaCompromiso), s.prioridad && 'prioridad ' + String(s.prioridad).toLowerCase()].filter(Boolean).join(' · ')) + '</small>' +
+        (s.hallazgo ? '<small>' + esc(s.hallazgo) + '</small>' : '') +
+        (x.estado !== 'CERRADA' ? '<div class="av">' + (Number(s.avances) ? '<b>Avance:</b> ' + esc(s.avances) + ' anotación' + (Number(s.avances) === 1 ? '' : 'es') + (s.ultimoAvance ? ' · última: ' + esc(s.ultimoAvance) : '') : s.avances === 0 || s.avances === '0' ? 'Sin avances anotados todavía.' : '') + '</div>' : '') +
+        (x.estado === 'CERRADA' && s.fechaCierre ? '<small>Cerrada el ' + esc(UI.corta(s.fechaCierre)) + (s.eficaz ? ' · eficaz: ' + esc(s.eficaz) : '') + '</small>' : '') +
+        '<div class="acc">' + (x.estado === 'CERRADA' && !s.verificada ? '<button type="button" class="btn-mini" data-ver="' + esc(x.id) + '">Verificar</button>' : '') +
+        (x.estado === 'CERRADA' ? '<button type="button" class="btn-mini" style="background:#8a2a1c;" data-reabrir="' + esc(x.id) + '">Reabrir</button>' : '<button type="button" class="btn-mini" data-nota="' + esc(x.id) + '">Anotar al cliente</button>') + '</div></div>'; }).join('')
+      : '<div class="empty">' + (tot ? 'Ninguna tarea en este filtro.' : 'Todavía no le has asignado tareas. Toca «+ Asignar tarea».') + '</div>');
   $('cCorreos').addEventListener('click', ()=> configurarCorreos(perfil));
+  if ($('fTar')) $('fTar').addEventListener('click', (e)=> { const b = e.target.closest('[data-ft]'); if (!b) return; fTar = b.dataset.ft; pintarTareas(); });
   if ($('cUsarPerfil')) $('cUsarPerfil').addEventListener('click', async ()=> { const p = perfil.resumen;
     const r = await SGSST.enviar({ action: 'parche', tipo: 'cliente', id: c.id, campos: { trabajadores: Number(p.trabajadores), claseRiesgo: p.claseRiesgo, grupo0312: grupo0312(p.trabajadores, p.claseRiesgo) } });
     if (r.ok) { await cargar(); abrir(c.id); } });
@@ -276,23 +327,46 @@ async function cambiarTarea(id, que){
 const PRIORIDADES = ['Alta', 'Media', 'Baja'];
 let perfilCli = null;
 const pendCorreo = ()=> !(perfilCli && perfilCli.resumen.correoSST);
+/** Opciones del responsable: los usuarios de la empresa (si su servidor los da), su responsable
+ *  del SG-SST y el contacto que tienes anotado; con «Otro» se escribe cualquier nombre. */
+function opcionesResp(sel){
+  const vistos = {}, ops = [];
+  const add = (n, det)=> { n = String(n || '').trim(); const k = UI.norm(n); if (!n || vistos[k]) return; vistos[k] = 1; ops.push('<option value="' + esc(n) + '"' + (n === sel ? ' selected' : '') + '>' + esc(n + (det ? ' · ' + det : '')) + '</option>'); };
+  const ROL = { sst: 'SST', admin: 'Administrador', supervisor: 'Supervisor', comite: 'Comité', consulta: 'Consulta' };
+  respCli.forEach((u)=> add(u.nombre, [u.cargo, ROL[u.rol]].filter(Boolean).join(', ')));
+  add(actual.contacto, 'contacto anotado en tu panel');
+  return '<option value="">Elige a quién</option>' + ops.join('') + '<option>Otro</option>';
+}
 function nuevaTarea(pre){
   pre = pre || {};
-  const c = actual, g = Number(c.grupo0312), P = PLANTILLAS_AUDITORIA[g === 60 ? 'RES0312' : 'RES0312_' + g];
-  const m = UI.modal('<h3>Tarea para ' + esc(c.nombre) + '</h3>' +
-    '<div class="field"><label>Tarea *</label><input type="text" id="tT" value="' + esc(pre.titulo || '') + '" placeholder="Ej: Firmar y divulgar la política de SST"></div>' +
-    '<div class="field"><label>Detalle e instrucciones</label><textarea id="tD">' + esc(pre.detalle || '') + '</textarea></div>' +
-    '<div class="field"><label>Estándar relacionado</label><select id="tE"><option value="">—</option>' + P.items.map((i)=> '<option value="' + esc(i[0]) + '"' + (i[0] === pre.estandar ? ' selected' : '') + '>' + esc(i[0] + ' · ' + i[4].split(' — ')[0].slice(0, 80)) + '</option>').join('') + '</select></div>' +
-    '<div class="grid2"><div class="field"><label>Responsable en la empresa *</label><input type="text" id="tR" value="' + esc(c.contacto || '') + '"></div><div class="field"><label>Fecha límite</label><input type="date" id="tF" value="' + Festivos.sumarDias(UI.hoy(), 30) + '"></div></div>' +
-    '<div class="field"><label>Prioridad</label><select id="tP">' + PRIORIDADES.map((p)=> '<option' + (p === 'Media' ? ' selected' : '') + '>' + p + '</option>').join('') + '</select></div>' +
-    '<p class="ayuda">Queda en el plan de acción de su portal' + (pendCorreo() ? '' : ' y le llega un correo al responsable') + '.</p><button type="button" class="btn amber" id="tOk">Dejar la tarea</button><button type="button" class="btn ghost" data-cerrar>Cancelar</button><div class="status-msg" id="tMsg"></div>', true);
+  const c = actual, g = Number(c.grupo0312), P = PLANTILLAS_AUDITORIA[g === 60 ? 'RES0312' : 'RES0312_' + g], h = UI.hoy();
+  const resp0 = pre.responsable || (respCli[0] && respCli[0].nombre) || c.contacto || '';
+  const m = UI.modal('<h3>Asignar tarea a ' + esc(c.nombre) + '</h3>' +
+    '<p class="ayuda" style="margin-top:0;">Los campos con * son obligatorios.</p>' +
+    '<div class="field"><label for="tT">Tarea (qué debe hacer) *</label><input type="text" id="tT" maxlength="180" value="' + esc(pre.titulo || '') + '" placeholder="Ej: Firmar y divulgar la política de SST"></div>' +
+    '<div class="field"><label for="tD">Detalle e instrucciones</label><textarea id="tD" rows="3" placeholder="Qué evidencia esperas, dónde subirla, a quién preguntar…">' + esc(pre.detalle || '') + '</textarea></div>' +
+    '<div class="field"><label for="tR">Responsable en la empresa *</label><select id="tR">' + opcionesResp(resp0) + '</select>' +
+      '<div class="ayuda" style="margin-top:4px;">' + (respCli.length ? 'Son los usuarios de su portal: le aparece en sus pendientes y en su correo del lunes.' : 'Su portal no dio la lista de usuarios (servidor anterior a v107 o sin usuarios): elige el contacto o «Otro» y escribe el nombre como está en su portal.') + '</div></div>' +
+    '<div class="grid2"><div class="field"><label for="tF">Fecha límite *</label><input type="date" id="tF" min="' + h + '" value="' + esc(pre.fecha || Festivos.sumarDias(h, 30)) + '"></div>' +
+      '<div class="field"><label for="tP">Prioridad *</label><select id="tP">' + PRIORIDADES.map((p)=> '<option' + (p === (pre.prioridad || 'Media') ? ' selected' : '') + '>' + p + '</option>').join('') + '</select></div></div>' +
+    '<div class="field"><label for="tE">Estándar relacionado (Res. 0312)</label><select id="tE" data-sin-otro><option value="">Ninguno en particular</option>' + P.items.map((i)=> '<option value="' + esc(i[0]) + '"' + (i[0] === pre.estandar ? ' selected' : '') + '>' + esc(i[0] + ' · ' + i[4].split(' — ')[0].slice(0, 80)) + '</option>').join('') + '</select></div>' +
+    '<div class="aviso info" style="font-size:13px;">Queda en el plan de acción de su portal (origen «Asesor SST»), en los pendientes del inicio y en el correo del lunes del responsable' + (pendCorreo() ? '' : ', y le llega un correo de una vez') + '.</div>' +
+    '<div id="tSal"></div><button type="button" class="btn amber" id="tOk">Asignar la tarea</button><button type="button" class="btn ghost" data-cerrar>Cancelar</button><div class="status-msg" id="tMsg"></div>', true);
+  const sel = m.el.querySelector('#tR'); Valida.otro(sel);
+  if (resp0 && sel.value !== resp0) sel.value = resp0;
   m.el.querySelector('#tOk').addEventListener('click', async ()=> {
-    const v = (id)=> m.el.querySelector(id).value.trim();
-    if (!v('#tT') || !v('#tR')) { m.el.querySelector('#tMsg').textContent = 'Faltan la tarea y el responsable.'; return; }
-    m.el.querySelector('#tMsg').textContent = 'Guardando en el portal del cliente…';
+    const el = (id)=> m.el.querySelector(id), v = (id)=> String(el(id).value || '').trim();
+    const malos = Valida.revisar(m.el, [
+      { el: el('#tT'), etiqueta: 'Tarea', error: ()=> !v('#tT') ? 'falta' : v('#tT').length < 5 ? 'escríbela un poco más clara (mínimo 5 letras)' : '' },
+      { el: sel, etiqueta: 'Responsable', error: ()=> !v('#tR') || /^otro$/i.test(v('#tR')) ? 'elige a quién o escribe su nombre en «Otro»' : '' },
+      { el: el('#tF'), etiqueta: 'Fecha límite', error: ()=> !v('#tF') ? 'falta' : Valida.fecha(v('#tF')) || (v('#tF') < h ? 'no puede ser anterior a hoy' : '') }
+    ], el('#tSal'));
+    if (malos.length) return;
+    el('#tOk').disabled = true; el('#tMsg').textContent = 'Guardando en el portal del cliente…';
     const r = await crearTarea({ titulo: v('#tT'), detalle: v('#tD'), estandar: v('#tE'), responsable: v('#tR'), fecha: v('#tF'), prioridad: v('#tP') });
-    if (!r.ok) { m.el.querySelector('#tMsg').textContent = 'No se guardó: ' + (r.error || ''); return; }
-    m.cerrar(); UI.toast('✓ Tarea en el plan de acción del cliente.'); traerTareas();
+    el('#tOk').disabled = false;
+    if (!r.ok) { el('#tMsg').textContent = 'No se guardó: ' + (r.error || ''); return; }
+    m.cerrar(); UI.toast('✓ Tarea asignada a ' + v('#tR') + ' en el plan de acción de ' + c.nombre + '.'); fTar = 'abiertas'; traerTareas();
   });
 }
 function crearTarea(t){
@@ -313,11 +387,14 @@ async function tareasEstandares(){
   const m = UI.modal('<h3>Tareas de sus ' + g + ' estándares</h3><p class="ayuda">' + (nc ? 'Marcados: los que no cumplió en su autoevaluación del ' + esc(UI.corta(autoeval.resumen.fechaEjecucion)) + '.' : 'Aún no tiene autoevaluación: están marcados todos.') + ' Los que ya tienen una tarea abierta no se repiten.</p>' +
     P.items.map((i, k)=> { const ya = abiertas.has(i[0]); const marc = !ya && (!nc || nc.has(i[0]));
       return '<label class="std"><input type="checkbox" data-k="' + k + '"' + (marc ? ' checked' : '') + (ya ? ' disabled' : '') + '><div><b>' + esc(i[0]) + '</b> ' + esc(i[4].split(' — ')[0]) + (ya ? ' <small>ya tiene tarea abierta</small>' : '') + '<small>' + esc(i[4].split(' — ').slice(-1)[0]) + '</small></div></label>'; }).join('') +
-    '<div class="grid2" style="margin-top:8px;"><div class="field"><label>Responsable</label><input type="text" id="sR" value="' + esc(c.contacto || '') + '"></div><div class="field"><label>Fecha límite</label><input type="date" id="sF" value="' + Festivos.sumarDias(UI.hoy(), 45) + '"></div></div>' +
+    '<div class="grid2" style="margin-top:8px;"><div class="field"><label for="sR">Responsable *</label><select id="sR">' + opcionesResp((respCli[0] && respCli[0].nombre) || c.contacto || '') + '</select></div><div class="field"><label for="sF">Fecha límite *</label><input type="date" id="sF" min="' + UI.hoy() + '" value="' + Festivos.sumarDias(UI.hoy(), 45) + '"></div></div><div id="sSal"></div>' +
     '<button type="button" class="btn amber" id="sOk">Dejar las tareas marcadas</button><button type="button" class="btn ghost" data-cerrar>Cancelar</button><div class="status-msg" id="sMsg"></div>', true);
+  Valida.otro(m.el.querySelector('#sR'));
   m.el.querySelector('#sOk').addEventListener('click', async ()=> {
     const sel = [...m.el.querySelectorAll('input[data-k]:checked')].map((x)=> P.items[+x.dataset.k]), resp = m.el.querySelector('#sR').value.trim(), f = m.el.querySelector('#sF').value, msg = m.el.querySelector('#sMsg');
-    if (!sel.length || !resp) { msg.textContent = 'Marca al menos un estándar y escribe el responsable.'; return; }
+    if (!sel.length) { msg.textContent = 'Marca al menos un estándar.'; return; }
+    if (Valida.revisar(m.el, [{ el: m.el.querySelector('#sR'), etiqueta: 'Responsable', error: ()=> !resp || /^otro$/i.test(resp) ? 'elige a quién o escribe su nombre en «Otro»' : '' },
+      { el: m.el.querySelector('#sF'), etiqueta: 'Fecha límite', error: ()=> !f ? 'falta' : f < UI.hoy() ? 'no puede ser anterior a hoy' : '' }], m.el.querySelector('#sSal')).length) return;
     let n = 0; const lote = 'L' + Date.now().toString(36);
     for (const i of sel) { msg.textContent = 'Creando ' + (n + 1) + ' de ' + sel.length + '…';
       const r = await crearTarea({ titulo: 'Cumplir el estándar ' + i[0] + ': ' + i[4].split(' — ')[0], detalle: i[4].split(' — ').slice(-1)[0], estandar: i[0], responsable: resp, fecha: f, prioridad: Number(i[3]) >= 4 ? 'Alta' : 'Media', lote, loteN: sel.length, loteI: n + 1 });
@@ -331,7 +408,8 @@ function pintarVisitas(){
 }
 async function anotarVisita(){
   const f = $('vF').value, p = $('vP').value, n = $('vN').value.trim();
-  if (!n) { $('vN').focus(); return; }
+  if (Valida.revisar($('scrCli'), [{ el: $('vF'), etiqueta: 'Fecha', error: ()=> !f ? 'falta' : Valida.pasada(f) }, { el: $('vN'), etiqueta: 'Qué se revisó', error: ()=> n ? '' : 'falta' },
+    { el: $('vP'), etiqueta: 'Próxima visita', error: ()=> p && f && p < f ? 'no puede ser antes de la visita' : '' }], $('vMsg')).length) return;
   const r = await SGSST.enviar({ action: 'parche', tipo: 'cliente', id: actual.id, campos: { ultimaVisita: f, proximaVisita: p }, agregar: { visitas: [{ uid: SGSST.nuevoOpId(), fecha: f, nota: n }] } });
   if (!r.ok) { $('cMsg').textContent = 'No se guardó: ' + (r.error || ''); return; }
   actual.visitas = (actual.visitas || []).concat([{ fecha: f, nota: n }]); actual.ultimaVisita = f; actual.proximaVisita = p; $('vN').value = '';
@@ -357,10 +435,10 @@ $('btnSync').addEventListener('click', async ()=> {
       const h = UI.hoy(), t = r.rows.filter((y)=> y.tipo === 'accion' && y.resumen.origen === ORIGEN), ab = t.filter((y)=> y.estado !== 'CERRADA');
       const au = r.rows.filter((y)=> y.tipo === 'auditoria' && /^RES0312/.test(y.resumen.plantilla) && y.estado === 'CERRADA').sort((p, q)=> String(q.resumen.fechaEjecucion).localeCompare(String(p.resumen.fechaEjecucion)))[0];
       let vs = ''; try { const pg = await Cli.get(c, { action: 'ping' }); vs = (pg && pg.version) || (pg && pg.ok ? 'anterior a v99' : ''); } catch (e) {}
-      await SGSST.enviar({ action: 'parche', tipo: 'cliente', id: c.id, campos: { versionServidor: vs, tareasAbiertas: ab.length, tareasVencidas: ab.filter((y)=> y.resumen.fechaCompromiso && y.resumen.fechaCompromiso < h).length, puntaje: au ? Number(au.resumen.puntaje) : '', sincronizado: new Date().toISOString() } });
+      await SGSST.enviar({ action: 'parche', tipo: 'cliente', id: c.id, campos: { versionServidor: vs, tareasAbiertas: ab.length, tareasCerradas: t.length - ab.length, tareasVencidas: ab.filter((y)=> y.resumen.fechaCompromiso && y.resumen.fechaCompromiso < h).length, puntaje: au ? Number(au.resumen.puntaje) : '', sincronizado: new Date().toISOString() } });
     } catch (e) { mal.push(c.nombre + ': sin respuesta'); }
   }
-  b.disabled = false; b.textContent = '🔄 Traer el avance de todos los clientes';
+  b.disabled = false; b.textContent = 'Traer el avance de todos';
   UI.toast(mal.length ? 'Listo, con problemas en: ' + mal.join(' · ') : '✓ Avance actualizado.', mal.length ? 'mal' : '');
   cargar();
 });

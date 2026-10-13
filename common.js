@@ -505,7 +505,7 @@ function formatSavedAt(iso) {
  * Requiere sw.js v2 (que no hace skipWaiting automático).
  */
 /* Versión del portal (sitio). El panel del asesor la compara con la del servidor de cada cliente. */
-const VERSION_PORTAL_WEB = 'v106';
+const VERSION_PORTAL_WEB = 'v107';
 
 const UpdateManager = {
   init() {
@@ -1838,8 +1838,11 @@ const Sesion = {
   _css() {
     if (document.getElementById('sesionCss')) return;
     const st = document.createElement('style'); st.id = 'sesionCss';
-    st.textContent = '.ses-chip{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);right:10px;z-index:60;background:#151b24;color:#fff;border:0;border-radius:999px;padding:7px 12px;font:600 13px/1.2 inherit;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.25);max-width:46vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}' +
+    st.textContent = '.ses-chip{position:absolute;top:calc(env(safe-area-inset-top,0px) + 8px);right:10px;z-index:60;background:#151b24;color:#fff;border:0;border-radius:999px;padding:7px 12px;font:600 13px/1.2 inherit;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.25);max-width:46vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}' +
       '.ses-chip.sin{background:#c77700;}' +
+      /* v107: en el inicio el botón va dentro de la fila de botones del encabezado (no tapa Estado ni Ayuda) */
+      '.hdr-acc .ses-chip{position:static;max-width:30vw;min-height:40px;border-radius:10px;padding:0 10px;box-shadow:none;align-self:center;}' +
+      '@media(max-width:520px){.hdr-acc .ses-chip{width:44px;min-height:44px;padding:0;font-size:18px;}.hdr-acc .ses-chip .ses-nom{display:none;}}' +
       '.ses-fondo{position:fixed;inset:0;background:rgba(10,14,20,.55);z-index:20050;display:flex;align-items:flex-end;justify-content:center;}' +
       '.ses-caja{background:#fff;color:#151b24;width:100%;max-width:440px;border-radius:16px 16px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 24px rgba(0,0,0,.25);max-height:92vh;overflow:auto;}' +
       '@media(min-width:600px){.ses-fondo{align-items:center}.ses-caja{border-radius:16px}}' +
@@ -1943,9 +1946,9 @@ const Sesion = {
     const yo = this.yo();
     if (!yo && !this.modo()) { if (c) c.remove(); return; }
     this._css();
-    if (!c) { c = document.createElement('button'); c.type = 'button'; c.id = 'sesChip'; c.addEventListener('click', () => this.menu()); document.body.appendChild(c); }
+    if (!c) { c = document.createElement('button'); c.type = 'button'; c.id = 'sesChip'; c.addEventListener('click', () => this.menu()); const acc = document.querySelector('.hdr-acc'); if (acc) acc.insertBefore(c, acc.firstChild); else document.body.appendChild(c); }
     c.className = 'ses-chip' + (yo ? '' : ' sin');
-    c.textContent = yo ? '👤 ' + String(yo.nombre || yo.usuario).split(' ')[0] : '👤 Entrar';
+    c.innerHTML = '<span aria-hidden="true">👤</span><span class="ses-nom"> ' + esc(yo ? String(yo.nombre || yo.usuario).split(' ')[0] : 'Entrar') + '</span>';
     c.setAttribute('aria-label', yo ? 'Sesión de ' + yo.nombre : 'Entrar con mi usuario');
   },
   montarChip() {
@@ -2220,3 +2223,26 @@ const AccesoRol = {
 if (typeof document !== 'undefined') {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => AccesoRol.vigilar()); else AccesoRol.vigilar();
 }
+
+/* ================= SUBIR ARRIBA (v107) =================
+   En las páginas largas (plan anual, matriz, PESV…) aparece abajo a la
+   derecha un botón para volver al inicio de la página de un toque. */
+(function () {
+  if (typeof document === 'undefined') return;
+  const montar = () => {
+    if (document.getElementById('subirArriba')) return;
+    const b = document.createElement('button');
+    b.type = 'button'; b.id = 'subirArriba'; b.className = 'subir-arriba'; b.hidden = true;
+    b.setAttribute('aria-label', 'Subir al inicio de la página'); b.title = 'Subir';
+    b.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 5l-7 7m7-7l7 7M12 5v14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    b.addEventListener('click', () => { try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); } });
+    document.body.appendChild(b);
+    const barra = document.querySelector('.footer-actions');
+    if (barra && getComputedStyle(barra).position === 'fixed') b.classList.add('con-barra');
+    let t = 0;
+    const ver = () => { t = 0; b.hidden = (window.scrollY || document.documentElement.scrollTop) < 600; };
+    window.addEventListener('scroll', () => { if (!t) t = requestAnimationFrame(ver); }, { passive: true });
+    ver();
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montar); else montar();
+})();

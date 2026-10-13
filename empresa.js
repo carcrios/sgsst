@@ -221,9 +221,9 @@ const Empresa = (function () {
     'permiso-izajes-cargas.html': 'izajes', 'permiso-trabajo-electrico.html': 'electrico', 'ats.html': 'ats', 'asistencia.html': 'asistencia',
     'personal-autorizado.html': 'personal', 'inspeccion-epp.html': 'epp', 'dashboard.html': 'tablero',
     'reportes.html': 'reportes', 'habilitacion.html': 'habilitacion', 'plan-accion.html': 'plan', 'inspecciones.html': 'inspecciones', 'indicadores.html': 'indicadores',
-    'copasst.html': 'copasst', 'convivencia.html': 'convivencia', 'auditorias.html': 'auditorias',
+    'copasst.html': 'copasst', 'convivencia.html': 'convivencia', 'comite-emergencias.html': 'comiteemergencias', 'auditorias.html': 'auditorias',
     'plan-anual.html': 'plananual', 'peligros.html': 'peligros', 'emergencias.html': 'emergencias', 'salud.html': 'salud', 'documental.html': 'documental', 'revision-direccion.html': 'revision',
-    'contratistas.html': 'contratistas', 'usuarios.html': 'usuarios', 'entrega-epp.html': 'dotacion', 'induccion.html': 'induccion', 'programas.html': 'programas', 'pesv.html': 'pesv', 'gerencia.html': 'gerencia', 'ambiental.html': 'ambiental', 'quimicos.html': 'quimicos', 'documentos.html': 'kit', 'calidad.html': 'calidad', 'asesor.html': 'asesor', 'cierre-mes.html': 'cierre', 'evidencias.html': 'evidencias', 'preoperacional.html': 'preop'
+    'contratistas.html': 'contratistas', 'usuarios.html': 'usuarios', 'entrega-epp.html': 'dotacion', 'induccion.html': 'induccion', 'programas.html': 'programas', 'pesv.html': 'pesv', 'gerencia.html': 'gerencia', 'informe.html': 'gerencia', 'ambiental.html': 'ambiental', 'quimicos.html': 'quimicos', 'documentos.html': 'kit', 'calidad.html': 'calidad', 'asesor.html': 'asesor', 'cierre-mes.html': 'cierre', 'evidencias.html': 'evidencias', 'preoperacional.html': 'preop', 'proveedores.html': 'proveedores'
   };
 
   function formato(id) {
@@ -236,9 +236,9 @@ const Empresa = (function () {
      Lo demás es el «Sistema de gestión»: con usuarios, cada rol ve lo suyo; Administrador y SST, todo. */
   const PUBLICO = ['caliente', 'alturas', 'confinados', 'izajes', 'electrico', 'ats', 'asistencia', 'personal', 'epp', 'brigadistas', 'tablero', 'reportes', 'preop'];
   const ACCESO_FABRICA = {
-    supervisor: ['habilitacion', 'inspecciones', 'plan', 'contratistas', 'dotacion', 'induccion', 'emergencias', 'pesv', 'programas', 'quimicos', 'peligros'],
-    comite: ['copasst', 'convivencia', 'inspecciones', 'plan', 'indicadores', 'peligros', 'auditorias', 'plananual', 'habilitacion'],
-    consulta: ['gerencia', 'indicadores', 'plan', 'plananual', 'cierre', 'evidencias', 'auditorias', 'revision', 'documental', 'kit', 'peligros', 'habilitacion', 'calidad', 'ambiental', 'copasst']
+    supervisor: ['habilitacion', 'inspecciones', 'plan', 'contratistas', 'dotacion', 'induccion', 'emergencias', 'comiteemergencias', 'pesv', 'programas', 'quimicos', 'peligros'],
+    comite: ['copasst', 'convivencia', 'comiteemergencias', 'inspecciones', 'plan', 'indicadores', 'peligros', 'auditorias', 'plananual', 'habilitacion'],
+    consulta: ['gerencia', 'indicadores', 'plan', 'plananual', 'cierre', 'evidencias', 'auditorias', 'revision', 'documental', 'kit', 'peligros', 'habilitacion', 'calidad', 'ambiental', 'copasst', 'proveedores']
   };
   const esPublico = (m) => !m || m === 'externo' || PUBLICO.indexOf(m) !== -1;
   function accesoRol(m, rol) {

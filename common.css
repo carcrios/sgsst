@@ -861,3 +861,24 @@ body .hdr-logo{width:64px !important;min-width:64px !important;height:38px !impo
 .hab-aviso[data-estado="ok"]{background:#e8f6ee;color:#1d6b43;}
 .hab-aviso[data-estado="pronto"]{background:#fff6dd;color:#7a5800;}
 .hab-aviso[data-estado="mal"],.hab-aviso[data-estado="sin-registro"]{background:#fdecea;color:#9b2c1f;}
+
+/* ── Subir arriba (v107) ── */
+.subir-arriba{position:fixed;right:14px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:900;width:48px;height:48px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.25);background:#18232e;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  box-shadow:0 4px 14px rgba(0,0,0,.28);opacity:.92;}
+.subir-arriba[hidden]{display:none;}
+.subir-arriba.con-barra{bottom:calc(132px + env(safe-area-inset-bottom,0px));}
+.subir-arriba:active{transform:scale(.94);}
+@media print{ .subir-arriba{display:none !important;} }
+
+/* ── Hoja impresa centrada y completa dentro de la margen (v107) ──
+   Márgenes iguales a los dos lados y la hoja nunca más ancha que el papel:
+   así no se corta la última columna ni queda corrida a un lado. */
+@media print{
+  html, body.hp-lista{width:auto !important;min-width:0 !important;max-width:none !important;}
+  body.hp-lista #hojaPermiso{width:100% !important;max-width:100% !important;margin:0 auto !important;padding:0 !important;box-sizing:border-box;}
+  body.hp-lista .hp{width:100%;max-width:100%;margin:0 auto;box-sizing:border-box;padding:0 .6mm;overflow:hidden;}
+  body.hp-lista .hp table{width:100% !important;max-width:100%;box-sizing:border-box;}
+  body.hp-lista .hp img{max-width:100%;}
+}
+body:has(.barra-guardar) .subir-arriba{bottom:calc(84px + env(safe-area-inset-bottom,0px));}

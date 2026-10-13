@@ -42,12 +42,13 @@ code{background:#eef1f5;border-radius:5px;padding:1px 5px;font-size:12.5px;}
     </table>
     <p class="ayuda" style="margin-top:8px;">Para darle o quitarle módulos a un rol se cambia <code>acceso</code> en empresa.js (ver la guía de instalación). Las claves de las personas no se guardan en ninguna parte: ni el administrador las puede ver.</p>
   </div>
-  <div class="version-portal">Portal SSTA · versión v106</div>
+  <div class="version-portal">Portal SSTA · versión v107</div>
 </div>
 </div>
 <script src="empresa.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
+<script src="valida.js"></script>
 <script src="sgsst-ui.js"></script>
 <script>
 OfflineBanner.init();
@@ -60,7 +61,7 @@ const ROLES = { admin: 'Administrador', sst: 'SST (todo el SG-SST)', supervisor:
 let usuarios = [], modo = false;
 /* Módulos que ve cada rol en el Sistema de gestión (de empresa.js). */
 (function pintarRoles(){
-  const N = { habilitacion: 'Habilitación del personal', inspecciones: 'Inspecciones y equipos', plan: 'Plan de acción', contratistas: 'Contratistas', dotacion: 'Entrega de dotación', induccion: 'Inducción', emergencias: 'Emergencias y simulacros', pesv: 'PESV', programas: 'Programas', quimicos: 'Sustancias químicas', peligros: 'Matriz de peligros', copasst: 'COPASST', convivencia: 'Convivencia', indicadores: 'Indicadores', auditorias: 'Auditorías', plananual: 'Plan anual', gerencia: 'Tablero de la gerencia', cierre: 'Cierre del mes', evidencias: 'Carpeta de evidencias', revision: 'Revisión por la dirección', documental: 'Documentos del SG', kit: 'Kit documental', calidad: 'Calidad', ambiental: 'Ambiental', salud: 'Salud', asesor: 'Asesor', usuarios: 'Usuarios' };
+  const N = { habilitacion: 'Habilitación del personal', inspecciones: 'Inspecciones y equipos', plan: 'Plan de acción', contratistas: 'Contratistas', dotacion: 'Entrega de dotación', induccion: 'Inducción', emergencias: 'Emergencias y simulacros', pesv: 'PESV', programas: 'Programas', quimicos: 'Sustancias químicas', peligros: 'Matriz de peligros', copasst: 'COPASST', convivencia: 'Convivencia', indicadores: 'Indicadores', auditorias: 'Auditorías', plananual: 'Plan anual', gerencia: 'Tablero de la gerencia', cierre: 'Cierre del mes', evidencias: 'Carpeta de evidencias', revision: 'Revisión por la dirección', documental: 'Documentos del SG', kit: 'Kit documental', calidad: 'Calidad', ambiental: 'Ambiental', salud: 'Salud', asesor: 'Asesor', usuarios: 'Usuarios', proveedores: 'Evaluación de proveedores', comiteemergencias: 'Comité de emergencias' };
   if (typeof Empresa === 'undefined' || !Empresa.tablaAcceso) return;
   const t = Empresa.tablaAcceso();
   document.querySelectorAll('#tablaRoles [data-rol]').forEach((td)=> {

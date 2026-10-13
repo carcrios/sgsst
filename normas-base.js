@@ -34,5 +34,9 @@ const NORMAS_BASE = [
   ['Ley 1503 de 2011', '2011', 'Congreso', 'Seguridad vial', 'Toda', 'Promoción de la seguridad vial; plan estratégico de seguridad vial (PESV).'],
   ['Resolución 40595 de 2022', '2022', 'Min. Transporte', 'Seguridad vial', 'Toda', 'Metodología para el diseño, implementación y verificación del PESV.'],
   ['Decreto 1477 de 2014', '2014', 'Min. Trabajo', 'Enfermedad laboral', 'Toda', 'Tabla de enfermedades laborales.'],
-  ['Ley 1581 de 2012', '2012', 'Congreso', 'Datos personales', 'Toda', 'Protección de datos personales (datos de salud de los trabajadores, autorizaciones).']
+  ['Ley 1581 de 2012', '2012', 'Congreso', 'Datos personales', 'Toda', 'Protección de datos personales (datos de salud de los trabajadores, autorizaciones).'],
+  ['Decreto 1076 de 2015 (modificado por el Decreto 766 de 2026)', '2026', 'Min. Ambiente', 'Residuos peligrosos', 'Título 6 (RESPEL)', 'Gestión integral de residuos peligrosos: categoría de generador, almacenamiento máximo 12 meses, capacitación anual, certificados 5 años y registro en el RUA.'],
+  ['Resolución 0839 de 2023', '2023', 'Min. Ambiente', 'Residuos peligrosos', 'Toda', 'Registro Único Ambiental (RUA): inscripción y reporte anual de generadores de residuos peligrosos ante el IDEAM.'],
+  ['Resolución 2674 de 2013', '2013', 'Min. Salud', 'Manipulación de alimentos', 'Art. 11 y 12', 'Reconocimiento médico y capacitación de manipuladores de alimentos (si aplica).'],
+  ['Resolución 1455 de 2025', '2025', 'Supertransporte', 'Seguridad vial', 'Toda', 'Reporte del PESV en la plataforma VIGIA 2 (vigilados por la Supertransporte).']
 ];

@@ -150,24 +150,30 @@ const UI = (function () {
     return personas;
   }
   const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  /** Autocompletar en un campo de nombre. alElegir(persona). */
+  /** Autocompletar en un campo de nombre. alElegir(persona).
+      Al tocar el campo ya muestra la lista (las primeras personas); al escribir, filtra por nombre o cédula. */
   function autocompletar(input, alElegir) {
     const field = input.closest('.field') || input.parentElement;
-    let caja = null;
+    let caja = null, turno = 0;
     const cerrar = () => { if (caja) { caja.remove(); caja = null; } };
     input.setAttribute('autocomplete', 'off');
-    input.addEventListener('input', async () => {
-      const q = norm(input.value).trim();
+    const mostrar = async () => {
+      const yo = ++turno, q = norm(input.value).trim();
+      const todas = await cargarPersonas();
+      if (yo !== turno || document.activeElement !== input) return;
       cerrar();
-      if (q.length < 2) return;
-      const l = (await cargarPersonas()).filter((p) => norm(p.nombre).includes(q) || String(p.cedula).includes(q)).slice(0, 8);
-      if (!l.length || norm(input.value).trim() !== q) return;
+      const l = (q ? todas.filter((p) => norm(p.nombre).includes(q) || String(p.cedula).includes(q)) : todas).slice(0, 8);
+      if (q && l.length === 1 && norm(l[0].nombre) === q) return;
       caja = document.createElement('div'); caja.className = 'ac';
-      caja.innerHTML = l.map((p, i) => '<button type="button" data-i="' + i + '">' + esc(p.nombre) + '<small>' + esc([p.cedula && 'C.C. ' + p.cedula, p.cargo].filter(Boolean).join(' · ')) + '</small></button>').join('');
+      caja.innerHTML = l.length ? l.map((p, i) => '<button type="button" data-i="' + i + '">' + esc(p.nombre) + '<small>' + esc([p.cedula && 'C.C. ' + p.cedula, p.cargo].filter(Boolean).join(' · ')) + '</small></button>').join('') +
+          (!q && todas.length > 8 ? '<div class="ac-nota">Escribe para buscar entre ' + todas.length + ' personas</div>' : '')
+        : '<div class="ac-nota">' + (todas.length ? 'Nadie coincide: se guarda tal como lo escribes.' : 'Aún no hay personas registradas (Habilitación del personal). Escribe el nombre completo.') + '</div>';
       field.appendChild(caja);
       caja.addEventListener('mousedown', (e) => e.preventDefault());
-      caja.addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (!b) return; alElegir(l[+b.dataset.i]); cerrar(); });
-    });
+      caja.addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (!b) return; alElegir(l[+b.dataset.i]); cerrar(); input.dispatchEvent(new Event('change', { bubbles: true })); });
+    };
+    input.addEventListener('input', mostrar);
+    input.addEventListener('focus', mostrar);
     input.addEventListener('blur', () => setTimeout(cerrar, 150));
     input.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrar(); });
   }
@@ -210,7 +216,7 @@ const UI = (function () {
       '<div class="hp-pie">Impreso el ' + esc(new Date().toLocaleString('es-CO')) + ' desde el ' + esc(Empresa.pie()) + '</div></div>').join('');
     let st = $('paginaSgsst');
     if (!st) { st = document.createElement('style'); st.id = 'paginaSgsst'; document.head.appendChild(st); }
-    st.textContent = '@media print{@page{size:letter ' + (horizontal ? 'landscape' : 'portrait') + ';margin:8mm;}}';
+    st.textContent = '@media print{@page{size:letter ' + (horizontal ? 'landscape' : 'portrait') + ';margin:10mm 10mm;}}';
     document.body.classList.add('hp-lista');
     const imgs = [...cont.querySelectorAll('img')].filter((i) => !i.complete);
     if (imgs.length) await Promise.race([Promise.all(imgs.map((i) => new Promise((r) => { i.addEventListener('load', r, { once: true }); i.addEventListener('error', r, { once: true }); }))), new Promise((r) => setTimeout(r, 2500))]);
@@ -219,7 +225,7 @@ const UI = (function () {
   window.addEventListener('afterprint', () => document.body.classList.remove('hp-lista'));
 
   /* ── Plan de acción compartido: cualquier módulo crea acciones ── */
-  const ORIGENES = ['Reporte de acto/condición', 'Incidente', 'Accidente de trabajo', 'Inspección planeada', 'Inspección de EPP', 'Auditoría', 'Autoevaluación Res. 0312', 'COPASST', 'Comité de convivencia', 'Revisión por la dirección', 'Matriz de peligros', 'Simulacro', 'Gestión del cambio', 'Matriz legal', 'Evaluación de proveedores', 'Batería psicosocial', 'Programa de alto riesgo', 'PESV', 'Contratistas', 'Ambiental', 'Sustancias químicas', 'Calidad', 'Asesor SST', 'Preoperacional', 'Otro'];
+  const ORIGENES = ['Reporte de acto/condición', 'Incidente', 'Accidente de trabajo', 'Inspección planeada', 'Inspección de EPP', 'Auditoría', 'Autoevaluación Res. 0312', 'COPASST', 'Comité de convivencia', 'Revisión por la dirección', 'Matriz de peligros', 'Simulacro', 'Plan de emergencias', 'Gestión del cambio', 'Matriz legal', 'Evaluación de proveedores', 'Batería psicosocial', 'Programa de alto riesgo', 'PESV', 'Contratistas', 'Ambiental', 'Sustancias químicas', 'Calidad', 'Asesor SST', 'Preoperacional', 'Otro'];
   /** Ventana para crear una acción ya relacionada con su origen. */
   function nuevaAccion(pre, alGuardar) {
     pre = pre || {};

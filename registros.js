@@ -13,7 +13,12 @@ const Registros = (function () {
     const ph = c.ph ? ' placeholder="' + esc(c.ph) + '"' : '';
     let inp;
     if (c.t === 'textarea') inp = '<textarea id="' + id + '"' + ph + '>' + esc(val) + '</textarea>';
-    else if (c.t === 'select') inp = '<select id="' + id + '">' + (c.vacio ? '<option value="">—</option>' : '') + c.op.map((o) => { const ov = Array.isArray(o) ? o[0] : o, ol = Array.isArray(o) ? o[1] : o; return '<option value="' + esc(ov) + '"' + (String(ov) === String(val) ? ' selected' : '') + '>' + esc(ol) + '</option>'; }).join('') + '</select>';
+    else if (c.t === 'select') {
+      // Un valor escrito en «Otro» (que no está en la lista) se conserva al volver a abrir el registro.
+      const vals = c.op.map((o) => String(Array.isArray(o) ? o[0] : o)), propio = val !== '' && vals.indexOf(String(val)) === -1 && vals.some((x) => /^otr[oa]s?\b/i.test(x));
+      inp = '<select id="' + id + '">' + (c.vacio ? '<option value="">—</option>' : '') + c.op.map((o) => { const ov = Array.isArray(o) ? o[0] : o, ol = Array.isArray(o) ? o[1] : o;
+        return '<option value="' + esc(ov) + '"' + (String(ov) === String(val) ? ' selected' : '') + '>' + esc(ol) + '</option>' + (propio && /^otr[oa]s?\b/i.test(String(ov)) ? '<option value="' + esc(val) + '" data-otro-txt="1" selected>Otro: ' + esc(val) + '</option>' : ''); }).join('') + '</select>';
+    }
     else if (c.t === 'check') return '<label class="check"><input type="checkbox" id="' + id + '"' + (val === true || val === 'Sí' ? ' checked' : '') + '> ' + esc(c.l) + '</label>';
     else if (c.t === 'checks') return '<div class="field"><label>' + esc(c.l) + '</label><div class="chips" id="' + id + '">' + c.op.map((o) => { const ov = Array.isArray(o) ? o[0] : o, ol = Array.isArray(o) ? o[1] : o; return '<button type="button" data-v="' + esc(ov) + '" class="' + ((val || []).map(String).indexOf(String(ov)) !== -1 ? 'on' : '') + '">' + esc(ol) + '</button>'; }).join('') + '</div>' + (c.ayuda ? '<div class="ayuda">' + esc(c.ayuda) + '</div>' : '') + '</div>';
     else inp = '<input type="' + ({ date: 'date', month: 'month', number: 'number' }[c.t] || 'text') + '" id="' + id + '" value="' + esc(val) + '"' + ph + (c.t === 'number' ? ' inputmode="decimal" step="any"' : '') + (c.t === 'persona' ? ' data-persona="1"' : '') + '>';
@@ -68,7 +73,12 @@ const Registros = (function () {
     const msg = m.el.querySelector('[data-msg]');
     m.el.querySelector('[data-guardar]').addEventListener('click', async () => {
       const v = Object.assign({}, o.datos || {}, leer(o.campos, m.el, pref));
-      const f = faltan(o.campos, v); if (f.length) { msg.textContent = 'Falta: ' + f.join(', ') + '.'; return; }
+      const f = faltan(o.campos, v);
+      if (f.length) {
+        // v107: además de decir qué falta, se resalta cada campo vacío y se lleva la vista al primero.
+        if (typeof Valida !== 'undefined') { Valida.limpiar(m.el); o.campos.filter((c) => f.indexOf(c.l) !== -1).forEach((c) => Valida.marcar(m.el.querySelector('#' + pref + c.k), 'falta')); const p1 = m.el.querySelector('.v-falta'); if (p1) try { p1.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} }
+        msg.textContent = 'Falta: ' + f.join(', ') + '.'; return;
+      }
       const b = m.el.querySelector('[data-guardar]'); b.disabled = true; msg.textContent = 'Guardando…';
       let ok = false;
       try { ok = await o.alGuardar(v, m.el, pref); } catch (e) { msg.textContent = e.message; }

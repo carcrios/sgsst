@@ -23,6 +23,12 @@
 .resumen-niveles div{border-radius:10px;padding:8px;text-align:center;font-size:11px;font-weight:700;}
 .resumen-niveles b{display:block;font-size:20px;font-family:var(--font-display);}
 .part{display:flex;gap:8px;align-items:flex-start;border-bottom:1px dashed #e6eaee;padding:8px 0;}
+.sug-gtc{background:#f4f8fc;border-color:#cfe0f0;}
+.sg-g{margin:8px 0;}
+.sg-g b{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;}
+.sg-chip{display:inline-block;text-align:left;font:inherit;font-size:13px;line-height:1.35;border:1px solid #b9cfe4;background:#fff;color:#1f4d78;border-radius:10px;padding:6px 9px;margin:0 6px 6px 0;cursor:pointer;min-height:34px;}
+.sg-chip[disabled]{opacity:.45;cursor:default;}
+.sg-puesto{box-shadow:0 0 0 3px #9cc3e8;transition:box-shadow .3s;}
 </style>
 </head>
 <body>
@@ -44,7 +50,7 @@
     <button type="button" data-tab="revisiones">Revisiones con los trabajadores</button>
   </div>
   <div id="panel"><div class="empty">Cargando…</div></div>
-  <div class="version-portal">Portal SSTA · versión v106</div>
+  <div class="version-portal">Portal SSTA · versión v107</div>
 </div>
 
 <div class="screen" id="scrPeligro"></div>
@@ -54,9 +60,12 @@
 <script src="empresa.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
+<script src="valida.js"></script>
 <script src="sgsst-ui.js"></script>
 <script src="registros.js"></script>
 <script src="importar.js"></script>
+<script src="gtc45-catalogo.js"></script>
+<script src="qr.js"></script>
 <script>
 OfflineBanner.init();
 OutboxBadge.init();
@@ -87,16 +96,17 @@ function evaluar(d) {
   return { np, nr, nivel, interp: interpNP(np), aceptabilidad: ACEPT[nivel] };
 }
 
-let peligros = [], sustancias = [], mediciones = [], revisiones = [], acciones = [], tab = 'matriz', actual = null;
+let encuestas = [], peligros = [], sustancias = [], mediciones = [], revisiones = [], acciones = [], tab = 'matriz', actual = null;
 function show(id){ document.querySelectorAll('.screen').forEach((s)=>s.classList.toggle('active', s.id === id)); window.scrollTo(0, 0); }
 
 async function cargar(){
   if (UI.avisoServidor($('avisoSrv'))) { $('panel').innerHTML = ''; return; }
-  const r = await SGSST.listar('peligro,sustancia,medicion,revmatriz,accion');
+  const r = await SGSST.listar('peligro,sustancia,medicion,revmatriz,accion,encpeligro');
   UI.avisoCopia($('avisoCopia'), r);
   peligros = r.rows.filter((x)=> x.tipo === 'peligro'); sustancias = r.rows.filter((x)=> x.tipo === 'sustancia');
   mediciones = r.rows.filter((x)=> x.tipo === 'medicion'); revisiones = r.rows.filter((x)=> x.tipo === 'revmatriz').sort((a, b)=> String(b.resumen.fecha).localeCompare(String(a.resumen.fecha)));
   acciones = r.rows.filter((x)=> x.tipo === 'accion' && x.resumen.origen === 'Matriz de peligros');
+  encuestas = r.rows.filter((x)=> x.tipo === 'encpeligro');
   pintar();
 }
 function pintar(){
@@ -122,11 +132,11 @@ function pintar(){
 function pintarMatriz(panel){
   const procesos = [...new Set(peligros.map((x)=> x.resumen.proceso).filter(Boolean))].sort();
   const cuenta = (n)=> peligros.filter((x)=> x.resumen.nivel === n).length;
-  panel.innerHTML = '<div class="resumen-niveles">' + ['I', 'II', 'III', 'IV'].map((n)=> '<div class="chip ' + n + '"><b>' + cuenta(n) + '</b>Nivel ' + n + '</div>').join('') + '</div>' +
+  panel.innerHTML = '<div class="acciones-top"><button type="button" class="btn amber" id="btnNuevo">+ Identificar peligro</button><button type="button" class="btn ghost" id="btnPdf">Matriz de peligros (PDF)</button><button type="button" class="btn ghost" id="btnExcel">Cargar matriz desde Excel</button></div>' +
+    '<div class="resumen-niveles">' + ['I', 'II', 'III', 'IV'].map((n)=> '<div class="chip ' + n + '"><b>' + cuenta(n) + '</b>Nivel ' + n + '</div>').join('') + '</div>' +
     '<div class="grid2"><div class="field"><select id="fProc"><option value="">Todos los procesos</option>' + procesos.map((p)=> '<option>' + esc(p) + '</option>').join('') + '</select></div>' +
     '<div class="field"><select id="fNivel"><option value="">Todos los niveles</option><option value="I">I · No aceptable</option><option value="II">II · No aceptable o con control</option><option value="III">III · Mejorable</option><option value="IV">IV · Aceptable</option></select></div></div>' +
-    '<input type="search" class="buscar" id="buscar" placeholder="Buscar actividad, tarea o peligro"><div id="lista"></div>' +
-    '<button type="button" class="btn amber" id="btnNuevo">+ Identificar peligro</button><button type="button" class="btn ghost" id="btnPdf">🖨️ Matriz de peligros (PDF)</button><button type="button" class="btn ghost" id="btnExcel">⬆️ Cargar matriz desde Excel</button>';
+    '<input type="search" class="buscar" id="buscar" placeholder="Buscar actividad, tarea o peligro"><div id="lista"></div>';
   const lista = ()=> {
     const p = $('fProc').value, n = $('fNivel').value, q = UI.norm($('buscar').value).trim();
     let l = peligros.slice();
@@ -164,11 +174,13 @@ function editarPeligro(d){
       '<div class="field"><label>Tipo</label><select id="pSub"></select></div>' +
       '<div class="field"><label>Descripción del peligro *</label><input type="text" id="pPeligro" value="' + esc(d.peligro || '') + '" placeholder="Ej: Caída a distinto nivel desde andamio a 4 m"></div>' +
       '<div class="field"><label>Efectos posibles</label><input type="text" id="pEfectos" value="' + esc(d.efectos || '') + '" placeholder="Ej: Fracturas, trauma craneoencefálico, muerte"></div></div>' +
+    '<div class="card sug-gtc" id="pSug" hidden></div>' +
     '<div class="card"><h2>3. Controles que ya existen</h2>' +
       '<div class="field"><label>En la fuente</label><input type="text" id="pCF" value="' + esc(d.ctrlFuente || '') + '"></div>' +
       '<div class="field"><label>En el medio</label><input type="text" id="pCM" value="' + esc(d.ctrlMedio || '') + '"></div>' +
       '<div class="field"><label>En el individuo</label><input type="text" id="pCI" value="' + esc(d.ctrlIndividuo || '') + '"></div></div>' +
     '<div class="card"><h2>4. Evaluación del riesgo</h2>' +
+      '<p class="ayuda" style="margin-top:-4px;">ND: qué tanto fallan los controles. NE: cada cuánto se expone la gente. NC: qué tan grave sería el daño. El portal calcula NP = ND × NE y NR = NP × NC.</p>' +
       '<div class="field"><label>Nivel de deficiencia (ND)</label><select id="pND">' + ND.map((o)=> '<option value="' + o[0] + '">' + esc(o[1]) + '</option>').join('') + '</select></div>' +
       '<div class="field"><label>Nivel de exposición (NE)</label><select id="pNE">' + NE.map((o)=> '<option value="' + o[0] + '">' + esc(o[1]) + '</option>').join('') + '</select></div>' +
       '<div class="field"><label>Nivel de consecuencia (NC)</label><select id="pNC">' + NC.map((o)=> '<option value="' + o[0] + '">' + esc(o[1]) + '</option>').join('') + '</select></div>' +
@@ -180,8 +192,9 @@ function editarPeligro(d){
     '<button type="button" class="btn amber" id="pGuardar">Guardar</button>' + (d.nuevo ? '' : '<button type="button" class="btn ghost" id="pBorrar" style="color:var(--mal);">Borrar de la matriz</button>') + '<div class="status-msg" id="pMsg"></div>';
   $('pRut').value = d.rutinaria || 'Sí'; $('pClase').value = d.clasificacion || 'Condiciones de seguridad';
   $('pND').value = String(d.nd == null ? 6 : d.nd); $('pNE').value = String(d.ne || 3); $('pNC').value = String(d.nc || 25);
-  const subs = ()=> { const l = CLASES[$('pClase').value] || []; $('pSub').innerHTML = l.map((x)=> '<option>' + esc(x) + '</option>').join(''); if (l.indexOf(d.subtipo) !== -1) $('pSub').value = d.subtipo; };
-  $('pClase').addEventListener('change', subs); subs();
+  const subs = ()=> { const l = CLASES[$('pClase').value] || []; $('pSub').innerHTML = '<option value="">— Elige el tipo —</option>' + l.map((x)=> '<option>' + esc(x) + '</option>').join('') + '<option>Otro</option>';
+    if (d.subtipo && $('pClase').value === d.clasificacion) $('pSub').value = d.subtipo; sugerencias(); };
+  $('pClase').addEventListener('change', subs); $('pSub').addEventListener('change', sugerencias); subs();
   const ev = ()=> { const e = evaluar({ nd: $('pND').value, ne: $('pNE').value, nc: $('pNC').value });
     $('pEval').innerHTML = '<div><b>' + e.np + '</b>NP · ' + esc(e.interp) + '</div><div><b>' + $('pNC').value + '</b>NC</div><div><b>' + e.nr + '</b>NR</div>';
     $('pNivel').innerHTML = '<div class="nivel ' + e.nivel + '">Nivel ' + e.nivel + ' · ' + esc(e.aceptabilidad) + '<div style="font-weight:500;font-size:12.5px;margin-top:4px;">' + esc(QUE[e.nivel]) + '</div></div>'; };
@@ -193,6 +206,31 @@ function editarPeligro(d){
   $('pGuardar').addEventListener('click', guardarPeligro);
   if ($('pBorrar')) $('pBorrar').addEventListener('click', async ()=> { const mo = prompt('¿Por qué se quita de la matriz? (queda en la bitácora)'); if (!mo) return; if (await Registros.borrar(actual.id, mo)) { show('scrLista'); cargar(); } });
   show('scrPeligro');
+}
+/* ── Sugerencias GTC 45 (gtc45-catalogo.js): al elegir el tipo de peligro, propone la descripción,
+   los efectos, los controles que suelen existir y las medidas por jerarquía. Se toca para usarlas. ── */
+function sugerencias(){
+  const box = $('pSug'); if (!box) return;
+  const inf = $('pSub').value && $('pSub').value !== 'Otro' && typeof GTC45 !== 'undefined' ? GTC45.info($('pClase').value, $('pSub').value) : null;
+  if (!inf) { box.hidden = true; return; }
+  const chip = (t, destino)=> '<button type="button" class="sg-chip" data-dest="' + destino + '" data-t="' + esc(t) + '">+ ' + esc(t) + '</button>';
+  box.hidden = false;
+  box.innerHTML = '<h2>Sugerencias para «' + esc(inf.tipo) + '»</h2><p class="ayuda" style="margin-top:-4px;">Toca una sugerencia para agregarla. Ajústalas a la realidad de la tarea.</p>' +
+    (inf.desc ? '<div class="sg-g"><b>Descripción</b>' + chip(inf.desc, 'pPeligro') + '</div>' : '') +
+    '<div class="sg-g"><b>Efectos posibles</b>' + chip(inf.efectos, 'pEfectos') + '</div>' +
+    '<div class="sg-g"><b>Controles que suelen existir</b>' + inf.existentes.fuente.map((t)=> chip(t, 'pCF')).join('') + inf.existentes.medio.map((t)=> chip(t, 'pCM')).join('') + inf.existentes.individuo.map((t)=> chip(t, 'pCI')).join('') + '</div>' +
+    MEDIDAS.map(([k, n])=> (inf.controles[k] || []).length ? '<div class="sg-g"><b>' + esc(n) + '</b>' + inf.controles[k].map((t)=> chip(t, 'med-' + k)).join('') + '</div>' : '').join('') +
+    (inf.legal ? '<div class="sg-g"><b>Requisito legal</b>' + chip(inf.legal, 'pLegal') + '</div>' : '') +
+    '<button type="button" class="btn ghost mini" id="sgTodas">Usar todas las sugerencias</button>';
+  const poner = (dest, t)=> {
+    const el = /^med-/.test(dest) ? $('pMedidas').querySelector('[data-m="' + dest.slice(4) + '"] textarea') : $(dest); if (!el) return;
+    const sep = el.tagName === 'TEXTAREA' ? '\n' : '; ';
+    if (dest === 'pPeligro' || dest === 'pEfectos') { if (!el.value.trim()) el.value = t; else if (el.value.indexOf(t) === -1) el.value = el.value.trim() + (dest === 'pPeligro' ? ' — ' : '; ') + t; }
+    else if (el.value.indexOf(t) === -1) el.value = (el.value.trim() ? el.value.trim() + sep : '') + t;
+    el.classList.add('sg-puesto'); setTimeout(()=> el.classList.remove('sg-puesto'), 900);
+  };
+  box.querySelectorAll('.sg-chip').forEach((b)=> b.addEventListener('click', ()=> { poner(b.dataset.dest, b.dataset.t); b.disabled = true; }));
+  box.querySelector('#sgTodas').addEventListener('click', ()=> { box.querySelectorAll('.sg-chip:not([disabled])').forEach((b)=> { poner(b.dataset.dest, b.dataset.t); b.disabled = true; }); UI.toast('Sugerencias agregadas: revísalas y ajústalas.'); });
 }
 function leerPeligro(){
   const v = (id)=> $(id).value.trim(), d = actual;
@@ -207,7 +245,11 @@ function leerPeligro(){
 }
 async function guardarPeligro(){
   const d = leerPeligro(), msg = $('pMsg');
-  if (!d.proceso || !d.tarea || !d.peligro) { msg.textContent = 'Faltan el proceso, la tarea o la descripción del peligro.'; return; }
+  const prob = Valida.revisar($('scrPeligro'), [{ el: $('pProceso'), etiqueta: 'Proceso', error: d.proceso ? '' : 'falta' }, { el: $('pTarea'), etiqueta: 'Tarea', error: d.tarea ? '' : 'falta' },
+    { el: $('pSub'), etiqueta: 'Tipo de peligro', error: d.subtipo ? '' : 'elige el tipo' }, { el: $('pPeligro'), etiqueta: 'Descripción del peligro', error: d.peligro ? Valida.texto(d.peligro, 5) : 'falta' },
+    { el: $('pExp'), etiqueta: 'N.º de expuestos', error: $('pExp').value === '' ? 'falta' : Valida.numero($('pExp').value, { min: 1, entero: true }) },
+    { el: $('pFecha'), etiqueta: 'Fecha', error: Valida.pasada(d.fechaRevision) }], msg);
+  if (prob.length) return;
   msg.textContent = 'Guardando…';
   // Primero se guarda el peligro; las acciones van después (si el guardado falla no quedan acciones repetidas).
   const r = await Registros.guardar('peligro', d.id, d, d.nuevo ? 0 : d.version);
@@ -308,11 +350,54 @@ function pdfTabla(formato, titulo, filas, cols){
 }
 
 /* ── Revisiones con participación de los trabajadores (estándar 4.1.2) ── */
+/* ── Encuesta a los trabajadores: identifican los peligros por categorías (percepcion-peligros.html, sin usuario) ── */
+function enlaceEncuesta(area){
+  const base = location.href.split(/[?#]/)[0].replace(/[^/]*$/, ''), q = [];
+  if (typeof MultiEmpresa !== 'undefined' && MultiEmpresa.activo && EMPRESA.codigo) q.push('e=' + encodeURIComponent(EMPRESA.codigo));
+  if (area) q.push('area=' + encodeURIComponent(area));
+  return base + 'percepcion-peligros.html' + (q.length ? '?' + q.join('&') : '');
+}
+async function consolidadoEncuestas(){
+  const docs = (await Promise.all(encuestas.map((x)=> SGSST.doc(x.id)))).filter(Boolean);
+  const porTipo = {}, areas = {};
+  docs.forEach((d)=> { areas[d.area] = (areas[d.area] || 0) + 1; (d.peligros || []).forEach((p)=> { const k = p.clase + '|' + p.tipo; const x = porTipo[k] = porTipo[k] || { clase: p.clase, tipo: p.tipo, n: 0, areas: {}, diario: 0, coment: [] };
+    x.n++; x.areas[d.area] = 1; if (p.frecuencia === 'Todos los días') x.diario++; if (p.comentario) x.coment.push(p.comentario); }); });
+  const enMatriz = (x)=> peligros.some((p)=> UI.norm(p.resumen.clasificacion) === UI.norm(x.clase) && (UI.norm(p.resumen.peligro).includes(UI.norm(x.tipo).split(' ')[0]) || UI.norm(p.resumen.subtipo || '') === UI.norm(x.tipo)));
+  return { docs, areas, lista: Object.values(porTipo).sort((a, b)=> b.n - a.n).map((x)=> Object.assign(x, { enMatriz: enMatriz(x) })) };
+}
 function pintarRevisiones(panel){
-  panel.innerHTML = '<p class="ayuda">Cada revisión de la matriz queda con quiénes participaron (de todos los niveles) y su firma. Se hace por lo menos una vez al año y cuando hay accidentes mortales, eventos catastróficos o cambios en procesos e instalaciones.</p>' +
+  panel.innerHTML = '<div class="card"><h2>Encuesta a los trabajadores</h2><p class="ayuda" style="margin-top:-4px;">Cada trabajador marca, por categorías de la GTC 45, los peligros que ve en su trabajo. Sin usuario: se responde desde el enlace o el QR. Sirve como evidencia de participación en la revisión de la matriz.</p>' +
+    '<div class="acciones-top"><button type="button" class="btn amber" id="encQR">Enlace y QR de la encuesta</button><button type="button" class="btn ghost" id="encVer">Ver resultados (' + encuestas.length + ')</button></div><div id="encRes"></div></div>' +
+    '<p class="ayuda">Cada revisión de la matriz queda con quiénes participaron (de todos los niveles) y su firma. Se hace por lo menos una vez al año y cuando hay accidentes mortales, eventos catastróficos o cambios en procesos e instalaciones.</p>' +
     (revisiones.length ? revisiones.map((x)=> '<button type="button" class="item ok" data-rev="' + esc(x.id) + '"><div class="fila"><div><div class="t">' + esc(x.resumen.alcance || 'Revisión de la matriz') + '</div><div class="m">' + esc(UI.corta(x.resumen.fecha)) + ' · ' + esc(x.resumen.participantes) + ' participante(s)' + (x.resumen.responsable ? ' · ' + esc(x.resumen.responsable) : '') + '</div></div></div></button>').join('') : '<div class="empty">Sin revisiones registradas.</div>') +
     '<button type="button" class="btn amber" id="btnRev">+ Registrar revisión</button>';
   panel.querySelectorAll('[data-rev]').forEach((b)=> b.addEventListener('click', async ()=> { const d = await Registros.abrir(b.dataset.rev); if (d) editarRevision(d); }));
+  $('encQR').addEventListener('click', ()=> {
+    const m = UI.modal('<h3>Encuesta de peligros para los trabajadores</h3><div class="field"><label>Área (opcional: la encuesta llega con el área ya escrita)</label><input type="text" id="encArea" list="dlProcE" placeholder="Todas"><datalist id="dlProcE">' + [...new Set(peligros.map((x)=> x.resumen.proceso).filter(Boolean))].map((p)=> '<option value="' + esc(p) + '">').join('') + '</datalist></div>' +
+      '<div style="text-align:center;"><canvas id="encCv" style="max-width:260px;width:100%;"></canvas></div><div class="texto-largo" id="encUrl" style="word-break:break-all;font-size:13px;"></div>' +
+      '<button type="button" class="btn amber" id="encCopiar">Copiar el enlace</button><button type="button" class="btn ghost" id="encWa">Enviar por WhatsApp</button><button type="button" class="btn ghost" data-cerrar>Cerrar</button>');
+    const ver = ()=> { const u = enlaceEncuesta(m.el.querySelector('#encArea').value.trim()); m.el.querySelector('#encUrl').textContent = u; try { QR.dibujar(m.el.querySelector('#encCv'), u, { px: 520, margen: 2 }); } catch (e) {} return u; };
+    m.el.querySelector('#encArea').addEventListener('input', ver); ver();
+    m.el.querySelector('#encCopiar').addEventListener('click', async ()=> { try { await navigator.clipboard.writeText(ver()); UI.toast('✓ Enlace copiado.'); } catch (e) { UI.toast('Copia el enlace de la pantalla.'); } });
+    m.el.querySelector('#encWa').addEventListener('click', ()=> window.open('https://wa.me/?text=' + encodeURIComponent('Ayúdanos a identificar los peligros de tu trabajo (2 minutos, puede ser anónimo): ' + ver()), '_blank'));
+  });
+  $('encVer').addEventListener('click', async ()=> {
+    const out = $('encRes'); out.innerHTML = '<div class="status-msg">Juntando las respuestas…</div>';
+    const c = await consolidadoEncuestas();
+    if (!c.docs.length) { out.innerHTML = '<div class="empty">Aún no hay respuestas. Comparte el enlace o el QR.</div>'; return; }
+    const faltan = c.lista.filter((x)=> !x.enMatriz);
+    out.innerHTML = '<div class="dato"><span>Respuestas</span><b>' + c.docs.length + '</b></div><div class="dato"><span>Por área</span><b>' + esc(Object.keys(c.areas).map((a)=> a + ': ' + c.areas[a]).join(' · ')) + '</b></div>' +
+      (faltan.length ? '<div class="aviso amar" style="margin-top:8px;">' + faltan.length + ' peligro(s) que señalaron los trabajadores no aparecen en la matriz. Revísalos y agrégalos si aplican.</div>' : '<div class="aviso ok" style="margin-top:8px;">Todo lo que señalaron los trabajadores ya está en la matriz.</div>') +
+      '<table class="tabla" style="margin-top:8px;"><tr><th>Peligro</th><th>Lo señalaron</th><th>¿En la matriz?</th></tr>' + c.lista.map((x, i)=> '<tr><td><b>' + esc(x.tipo) + '</b><br><small>' + esc(x.clase) + ' · ' + esc(Object.keys(x.areas).join(', ')) + (x.diario ? ' · ' + x.diario + ' a diario' : '') + '</small>' + (x.coment.length ? '<br><small>«' + esc(x.coment.slice(0, 2).join('» «')) + '»</small>' : '') + '</td><td style="text-align:center;">' + x.n + '</td><td>' +
+        (x.enMatriz ? 'Sí' : '<button type="button" class="btn-mini" data-agr="' + i + '">Agregar</button>') + '</td></tr>').join('') + '</table>' +
+      '<button type="button" class="btn ghost" id="encPdf">Resultados de la encuesta (PDF)</button>';
+    out.querySelectorAll('[data-agr]').forEach((b)=> b.addEventListener('click', ()=> { const x = c.lista[+b.dataset.agr];
+      editarPeligro({ id: SGSST.nuevoId('PEL'), nuevo: true, rutinaria: 'Sí', clasificacion: x.clase, subtipo: x.tipo, proceso: Object.keys(x.areas)[0] || '', peligro: '', nd: 6, ne: x.diario ? 4 : 3, nc: 25, fechaRevision: UI.hoy(), medidas: {}, origenEncuesta: true }); }));
+    out.querySelector('#encPdf').addEventListener('click', ()=> UI.imprimir([UI.cabecera('SG-PERCEPCION-PELIGROS', 'IDENTIFICACIÓN DE PELIGROS CON LOS TRABAJADORES', c.docs.length + ' respuesta(s) · corte ' + UI.corta(UI.hoy())) +
+      UI.seccion('PARTICIPACIÓN POR ÁREA', UI.tablaDatos(Object.keys(c.areas).map((a)=> [a, String(c.areas[a]) + ' trabajador(es)']))) +
+      UI.seccion('PELIGROS SEÑALADOS', '<table><tr><td class="l">Clase (GTC 45)</td><td class="l">Peligro</td><td class="l a">N.º</td><td class="l">Áreas</td><td class="l">¿En la matriz?</td></tr>' + c.lista.map((x)=> '<tr><td>' + esc(x.clase) + '</td><td>' + esc(x.tipo) + '</td><td class="a">' + x.n + '</td><td>' + esc(Object.keys(x.areas).join(', ')) + '</td><td>' + (x.enMatriz ? 'Sí' : 'No: revisar') + '</td></tr>').join('') + '</table>') +
+      UI.seccion('SUGERENCIAS DE LOS TRABAJADORES', UI.textoLargo(c.docs.map((d)=> d.sugerencias).filter(Boolean).map((t)=> '• ' + t).join('\n') || '—'))]));
+  });
   $('btnRev').addEventListener('click', ()=> editarRevision({ id: SGSST.nuevoId('RVM'), nuevo: true, fecha: UI.hoy(), alcance: 'Revisión anual de la matriz de peligros', participantes: [{ nombre: '', cargo: '', firma: '' }] }));
 }
 function editarRevision(d){

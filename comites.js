@@ -53,7 +53,7 @@ const Comite = (function () {
       '<div class="tabs" id="tabs"><button type="button" class="on" data-tab="reuniones">Reuniones</button><button type="button" data-tab="conformacion">Conformación</button>' +
       '<button type="button" data-tab="compromisos">Compromisos <span class="n" id="nComp">0</span></button>' +
       (C.tabsExtra || []).map((t) => '<button type="button" data-tab="' + t.id + '">' + esc(t.nombre) + '</button>').join('') + '</div>' +
-      '<div id="panel"><div class="empty">Cargando…</div></div><div class="version-portal">Portal SSTA · versión v106</div></div>' +
+      '<div id="panel"><div class="empty">Cargando…</div></div><div class="version-portal">Portal SSTA · versión v107</div></div>' +
       '<div class="screen" id="scrActa"></div><div class="screen" id="scrConf"></div>' + (C.pantallasExtra || '');
     $('tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; document.querySelectorAll('#tabs button').forEach((x) => x.classList.toggle('on', x === b)); pintar(); });
     document.addEventListener('click', (e) => { const v = e.target.closest('[data-volver]'); if (v) { e.preventDefault(); show('scrInicio'); pintar(); } });
@@ -82,7 +82,9 @@ const Comite = (function () {
     $('kpis').innerHTML =
       '<div class="kpi ' + (!p ? 'mal' : vigente() ? (UI.semaforo(p.fin, 45) === 'pronto' ? '' : 'ok') : 'mal') + '"><div class="v">' + (!p ? '—' : vigente() ? '✓' : '✗') + '</div><div class="n">' +
         (!p ? 'sin conformar' : vigente() ? 'periodo vigente' : 'periodo vencido') + '</div>' + (p && p.fin ? '<div class="f">hasta ' + esc(UI.corta(p.fin)) + '</div>' : '') + '</div>' +
-      '<div class="kpi ' + (mesesHechos.size >= mesesCorridos - (Number(h.slice(8, 10)) < 25 ? 1 : 0) ? 'ok' : 'mal') + '"><div class="v">' + mesesHechos.size + ' / ' + mesesCorridos + '</div><div class="n">meses con reunión ordinaria en ' + a + '</div></div>' +
+      (C.trimestral ? (()=> { const tri = new Set([...mesesHechos].map((m) => Math.ceil(Number(m) / 3))), tc = Math.ceil(mesesCorridos / 3);
+          return '<div class="kpi ' + (tri.size >= tc - 1 ? 'ok' : 'mal') + '"><div class="v">' + tri.size + ' / ' + tc + '</div><div class="n">trimestres con reunión ordinaria en ' + a + '</div></div>'; })()
+        : '<div class="kpi ' + (mesesHechos.size >= mesesCorridos - (Number(h.slice(8, 10)) < 25 ? 1 : 0) ? 'ok' : 'mal') + '"><div class="v">' + mesesHechos.size + ' / ' + mesesCorridos + '</div><div class="n">meses con reunión ordinaria en ' + a + '</div></div>') +
       '<div class="kpi"><div class="v">' + ab.length + '</div><div class="n">compromisos abiertos</div></div>' +
       '<div class="kpi ' + (ve.length ? 'mal' : 'ok') + '"><div class="v">' + ve.length + '</div><div class="n">compromisos vencidos</div></div>';
     const alertas = [];
@@ -101,12 +103,17 @@ const Comite = (function () {
 
   function pintarReuniones(panel, mesesHechos) {
     const h = UI.hoy(), mesHoy = Number(h.slice(5, 7));
-    const cal = MESES.map((m, i) => {
+    const triHoy = Math.ceil(mesHoy / 3);
+    const cal = C.trimestral ? ['Ene – Mar', 'Abr – Jun', 'Jul – Sep', 'Oct – Dic'].map((t, i) => {
+      const hecho = [1, 2, 3].some((k) => mesesHechos.has(('0' + (i * 3 + k)).slice(-2))), c = hecho ? 'ok' : (i + 1 < triHoy ? 'mal' : i + 1 === triHoy ? 'pronto' : 'gris');
+      return '<div class="mes ' + c + '"><b>' + t + '</b><span>' + (hecho ? '✓' : (i + 1 < triHoy ? 'Falta' : i + 1 === triHoy ? 'Este trimestre' : '')) + '</span></div>';
+    }).join('') : MESES.map((m, i) => {
       const mm = ('0' + (i + 1)).slice(-2), hecho = mesesHechos.has(mm);
       const c = hecho ? 'ok' : (i + 1 < mesHoy ? 'mal' : i + 1 === mesHoy ? 'pronto' : 'gris');
       return '<div class="mes ' + c + '"><b>' + m + '</b><span>' + (hecho ? '✓' : (i + 1 < mesHoy ? 'Falta' : i + 1 === mesHoy ? 'Este mes' : '')) + '</span></div>';
     }).join('');
-    panel.innerHTML = '<div class="card"><h2>Reuniones ordinarias ' + anio() + '</h2><div class="calendario">' + cal + '</div>' +
+    panel.innerHTML = '<div class="acciones-top"><button type="button" class="btn amber" id="btnOrd">+ Reunión ordinaria</button><button type="button" class="btn ghost" id="btnExt">+ Reunión extraordinaria</button></div>' +
+      '<div class="card"><h2>Reuniones ordinarias ' + anio() + '</h2><div class="calendario' + (C.trimestral ? ' tri' : '') + '">' + cal + '</div>' +
       '<p class="ayuda">' + esc(C.ayudaReuniones) + '</p></div>' +
       (C.avisoActa ? '<div class="aviso info">' + C.avisoActa + '</div>' : '') +
       (reuniones.length ? reuniones.map((x) => {
@@ -115,8 +122,7 @@ const Comite = (function () {
           '<div class="m">📅 ' + esc(UI.corta(s.fecha)) + (s.lugar ? ' · ' + esc(s.lugar) : '') + ' · ' + s.asistentes + ' de ' + s.convocados + ' asistentes' + (s.compromisos ? ' · ' + s.compromisos + ' compromiso(s)' : '') +
           (x.pendiente ? ' · <span class="pend">⏳ pendiente de enviar</span>' : '') + '</div>' + (s.motivo ? '<div class="m">Motivo: ' + esc(s.motivo) + '</div>' : '') + '</div>' +
           '<span class="chip ' + (s.quorum ? 'ok' : 'pronto') + '">' + (s.quorum ? 'Con quórum' : 'Sin quórum') + '</span></div></button>';
-      }).join('') : '<div class="empty">Aún no hay actas registradas.</div>') +
-      '<div class="fila-btn"><button type="button" class="btn amber" id="btnOrd">+ Reunión ordinaria</button><button type="button" class="btn ghost" id="btnExt">+ Reunión extraordinaria</button></div>';
+      }).join('') : '<div class="empty">Aún no hay actas registradas.</div>');
     panel.querySelectorAll('[data-acta]').forEach((b) => b.addEventListener('click', () => abrirActa(b.dataset.acta)));
     $('btnOrd').addEventListener('click', () => nuevaActa('Ordinaria'));
     $('btnExt').addEventListener('click', () => nuevaActa('Extraordinaria'));
@@ -139,7 +145,7 @@ const Comite = (function () {
     const ms = (p && p.miembros) || [];
     const cuenta = (rep, cal) => ms.filter((m) => m.representa === rep && m.calidad === cal).length;
     let chequeo = '';
-    if (regla && p) {
+    if (regla && p && !regla.sinConteo) {
       const falta = [];
       if (regla.vigia) { if (!ms.length) falta.push('el vigía'); }
       else ['Empleador', 'Trabajadores'].forEach((rep) => {

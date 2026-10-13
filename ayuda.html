@@ -39,12 +39,13 @@ video{width:100%;max-height:70vh;background:#000;border-radius:12px;}
   <div class="roles" id="roles"></div>
   <div id="lista"></div>
   <div class="card faq" id="faq"></div>
-  <div class="version-portal">Portal SSTA · versión v106</div>
+  <div class="version-portal">Portal SSTA · versión v107</div>
 </div>
 </div>
 <script src="empresa.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
+<script src="valida.js"></script>
 <script src="sgsst-ui.js"></script>
 <script>
 OfflineBanner.init();
@@ -113,8 +114,11 @@ const GUIAS = [
   { id: 'usuarios', ic: '👥', rol: ['sst'], t: 'Usuarios, roles y respaldo', href: 'usuarios.html', video: '',
     pasos: ['El primer administrador entra con el código que da el servidor (▶ codigoAdministrador).', 'Crea los usuarios con su rol: administrador, SST, supervisor, comité o consulta. Cada uno cambia su clave temporal al entrar.', 'La bitácora muestra quién hizo qué; el respaldo semanal copia las hojas a Drive.'] },
   { id: 'asesor', ic: '🧑‍💼', rol: ['asesor'], t: 'Panel del asesor: clientes y tareas', href: 'asesor.html', video: 'asesor',
-    pasos: ['+ Nuevo cliente con su número de trabajadores, riesgo, servidor y clave: el portal dice si le aplican 7, 21 o 60 estándares.', 'Abre el cliente: deja tareas (quedan en SU plan de acción) o «Tareas de sus estándares».', 'Configura los avisos por correo: le llega al responsable y a ti cuando la cierran. Verifica o reabre lo que cierren.', 'La tarjeta de cada cliente muestra la versión de su servidor; «servidores por actualizar» te dice a quién falta.'],
-    tips: ['Con el sitio multiempresa, cada cliente entra a tu sitio con ?e=código. Para actualizar sus servidores: node herramientas/actualizar-servidores.js clientes.json.'] },
+    pasos: ['+ Nuevo cliente con su número de trabajadores, riesgo, servidor (/exec) y la clave de su portal: el portal dice si le aplican 7, 21 o 60 estándares. Sin servidor no se le pueden asignar tareas.', 'Asignar una tarea: en la tarjeta de la empresa toca «Asignar tarea» → qué debe hacer, detalle, responsable (la lista trae los usuarios de su portal; con «Otro» escribes el nombre), fecha límite y prioridad → «Asignar la tarea». Si su portal usa usuarios, entra una vez con el usuario SST que te crearon.', 'La tarea queda en SU plan de acción con origen «Asesor SST», en sus pendientes del inicio (destacada como «Tarea del asesor SST») y en el correo del lunes de esa persona. Con los avisos por correo configurados le llega además un correo de una vez.', 'Seguimiento: «Ver sus tareas» muestra abiertas, vencidas y cerradas, el avance (cuántas cerradas y la última anotación del cliente). Cuando la cierren, «Verificar» o «Reabrir»; con «Anotar al cliente» le dejas un mensaje en la tarea.', '«Tareas de sus estándares» crea de una vez las tareas de los estándares que no cumplió en su autoevaluación. «Traer el avance de todos» actualiza las tarjetas de todos tus clientes.'],
+    tips: ['La lista de usuarios para elegir el responsable sale de su servidor en la versión v107 o posterior; con uno anterior escribe el nombre tal como está en su portal (así le aparece en sus pendientes).', 'Con el sitio multiempresa, cada cliente entra a tu sitio con ?e=código. Para actualizar sus servidores: node herramientas/actualizar-servidores.js clientes.json.'] },
+  { id: 'informe', ic: '📈', rol: ['sst', 'gerencia', 'asesor'], t: 'Informe del SG-SST con gráficas y sugerencias', href: 'informe.html', video: '',
+    pasos: ['Abre «Informe del SG-SST» (o desde el tablero de la gerencia, «Informe con gráficas y sugerencias»).', 'Elige el periodo: mes, trimestre o año. El informe junta todo lo registrado: accidentalidad, plan anual, plan de acción, inspecciones, comités, emergencias, químicos, ambiental, contratistas, EPP y evidencias de los estándares.', 'Revisa las sugerencias de mejora (alta, media y baja): cada una dice por qué sale, la norma y dónde se arregla. Con «Crear acción» queda en el plan de acción con responsable y fecha; «Abrir el módulo» te lleva a corregirlo.', '«Sacar el PDF con firma»: escribe el responsable del SG-SST, las conclusiones y firma en la pantalla (o deja la línea para firmar a mano). Sale con el resumen, las gráficas, las sugerencias y las cifras.'],
+    tips: ['La gerencia (rol consulta) ve el informe sin datos de salud individual; el área SST sí los ve.', 'Sirve como insumo para la revisión por la dirección y la rendición de cuentas (Dec. 1072 de 2015, arts. 2.2.4.6.31 y 2.2.4.6.8).'] },
   { id: 'configurar', ic: '⚙️', rol: ['asesor'], t: 'Configurar una empresa nueva', href: 'configurar-empresa.html', video: '',
     pasos: ['Instala su servidor en su cuenta de Google (guía INSTALAR-NUEVA-EMPRESA.md).', 'En configurar-empresa: «Empresa dentro de tu sitio multiempresa» → código, datos, logo, formatos, módulos y servidor.', 'Descarga empresas/<código>.json, súbelo a tu repositorio y envía el enlace o el QR.'] }
 ];

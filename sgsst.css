@@ -119,6 +119,7 @@ canvas.mini-pad{width:100%;height:160px;border:1.5px dashed #b9b2a2;border-radiu
 .ac{position:absolute;left:0;right:0;top:100%;z-index:50;background:#fff;border:1.5px solid var(--line);border-radius:10px;box-shadow:0 8px 22px rgba(0,0,0,.12);max-height:240px;overflow:auto;}
 .ac button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #eef1f4;background:#fff;padding:10px 12px;font-size:14px;cursor:pointer;font-family:inherit;}
 .ac button small{display:block;color:var(--muted);font-size:11.5px;}
+.ac .ac-nota{padding:9px 12px;font-size:12.5px;color:var(--muted);line-height:1.35;}
 
 /* Toast */
 .toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13.5px;font-weight:600;padding:11px 16px;border-radius:12px;z-index:10050;box-shadow:0 6px 18px rgba(0,0,0,.25);max-width:92vw;text-align:center;}
@@ -137,6 +138,8 @@ canvas.mini-pad{width:100%;height:160px;border:1.5px dashed #b9b2a2;border-radiu
 /* Comités: calendario, integrantes, asistencia */
 .calendario{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-bottom:8px;}
 @media (max-width:420px){.calendario{grid-template-columns:repeat(4,minmax(0,1fr));}}
+.calendario.tri{grid-template-columns:repeat(4,minmax(0,1fr));}
+@media (max-width:420px){.calendario.tri{grid-template-columns:repeat(2,minmax(0,1fr));}}
 .mes{border:1.5px solid var(--line);border-radius:10px;padding:7px 4px;text-align:center;font-size:12px;background:#fff;}
 .mes b{display:block;font-size:12.5px;}
 .mes span{display:block;font-size:10.5px;color:var(--muted);min-height:13px;}
@@ -155,6 +158,12 @@ label.check input{width:20px;height:20px;flex:0 0 auto;margin-top:1px;}
 .asis small{display:block;color:var(--muted);font-size:11.5px;}
 .seg-btn{display:flex;gap:4px;}
 .seg-btn button{border:1.5px solid var(--line);background:#fff;border-radius:8px;min-height:40px;min-width:52px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;color:var(--ink);}
+/* v107: cualquier opción elegida se ve marcada (antes solo Sí/No/Excusa: «los botones no funcionaban») */
+.seg-btn button.on{background:#18232e;border-color:#18232e;color:#fff;}
+.seg-btn button.on:is([data-v="Cumple"],[data-v="Completo"],[data-v="Implementado"],[data-v="Bueno"],[data-v="Vigente"],[data-v="C"]){background:var(--ok);border-color:var(--ok);color:#fff;}
+.seg-btn button.on:is([data-v="No cumple"],[data-v="No tiene"],[data-v="Malo"],[data-v="No implementado"],[data-v="Vencido"],[data-v="NC"]){background:var(--mal);border-color:var(--mal);color:#fff;}
+.seg-btn button.on:is([data-v="Parcial"],[data-v="Incompleto"],[data-v="En proceso"],[data-v="Regular"],[data-v="Cumple parcialmente"]){background:#c79100;border-color:#c79100;color:#fff;}
+.seg-btn button.on:is([data-v="No aplica"],[data-v="NA"],[data-v="N/A"]){background:#7b8794;border-color:#7b8794;color:#fff;}
 .seg-btn button.on[data-v="Sí"]{background:var(--ok);border-color:var(--ok);color:#fff;}
 .seg-btn button.on[data-v="No"]{background:var(--mal);border-color:var(--mal);color:#fff;}
 .seg-btn button.on[data-v="Excusa"]{background:#7b8794;border-color:#7b8794;color:#fff;}
@@ -177,3 +186,11 @@ label.check input{width:20px;height:20px;flex:0 0 auto;margin-top:1px;}
 .adj-ref{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;background:#fff;font-family:inherit;margin-top:8px;}
 .adj details{margin-top:6px;font-size:13px;}
 .btn-hist{margin-top:6px;}
+
+/* ── Botones de acción del módulo, arriba de la lista (v107) ── */
+.acciones-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:7px;margin:4px 0 12px;}
+.acciones-top .btn{margin:0;min-height:44px;width:100%;font-size:13.5px;padding:10px 12px;}
+.acciones-top .btn:only-child{grid-column:1 / -1;}
+/* v107: barra fija para el botón Guardar en formularios largos (celular) */
+.barra-guardar{position:sticky;bottom:0;z-index:5;background:linear-gradient(transparent,var(--bg,#eef1f4) 25%);padding:12px 0 calc(8px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;}
+.barra-guardar .btn{margin:0;}

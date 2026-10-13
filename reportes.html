@@ -27,6 +27,22 @@ details.grupo summary{padding:12px 0;font-weight:700;font-size:13.5px;cursor:poi
 details.grupo summary .n{font-weight:600;color:var(--muted);font-size:12px;}
 .equipo-inv{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:#fcfbf8;}
 .equipo-inv .rol{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.otra-causa{display:flex;gap:6px;margin-top:6px;}
+.otra-causa .btn-mini{min-height:44px;margin-left:0;padding:0 14px;}
+.otra-causa input{flex:1;min-width:0;min-height:44px;border:1.5px dashed var(--line);border-radius:8px;padding:9px 10px;font-size:15px;font-family:inherit;background:#fff;}
+.checks label.propia span{font-style:italic;}
+.porque{margin-bottom:8px;}
+.porque label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:3px;}
+.porque input{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:10px;font-size:15px;font-family:inherit;background:#fcfbf8;}
+.porque + .porque{padding-left:14px;border-left:3px solid #e3e8ec;}
+.medida{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #e6eaee;font-size:14px;}
+.medida span:first-child{flex:1;min-width:0;}
+.pasos-inv{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:12px;position:sticky;top:0;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,.05);}
+.pi-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;margin-bottom:6px;}
+.pi-top span{color:var(--muted);}
+.pi-pasos{display:flex;gap:4px;flex-wrap:wrap;}
+.pi-pasos span{font-size:12px;font-weight:600;border-radius:7px;padding:3px 7px;background:#eef1f4;color:#4a5566;}
+.pi-pasos span.ok{background:#e3f4ea;color:#1d6b45;}
 </style>
 </head>
 <body>
@@ -51,7 +67,7 @@ details.grupo summary .n{font-weight:600;color:var(--muted);font-size:12px;}
   </div>
   <input type="search" class="buscar" id="buscar" placeholder="Buscar por lugar, descripción o persona">
   <div id="lista"><div class="empty">Cargando…</div></div>
-  <div class="version-portal">Portal SSTA · versión v106</div>
+  <div class="version-portal">Portal SSTA · versión v107</div>
 </div>
 
 <!-- ═══════ NUEVO REPORTE ═══════ -->
@@ -142,6 +158,7 @@ details.grupo summary .n{font-weight:600;color:var(--muted);font-size:12px;}
     <h1>Investigación</h1>
     <p>Res. 1401 de 2007: dentro de los 15 días siguientes al evento</p>
   </div>
+  <div class="pasos-inv" id="iPasos"></div>
   <div class="card">
     <h2>Equipo investigador</h2>
     <p class="ayuda" style="margin-top:-4px;">Jefe inmediato o supervisor, un representante del COPASST o vigía, y el responsable de SST. Si fue grave o mortal, también un profesional con licencia en SST.</p>
@@ -158,10 +175,21 @@ details.grupo summary .n{font-weight:600;color:var(--muted);font-size:12px;}
     <details class="grupo"><summary>Inmediatas · condiciones subestándar <span class="n" data-n="condiciones"></span></summary><div class="checks" id="cCondiciones"></div></details>
     <details class="grupo"><summary>Básicas · factores personales <span class="n" data-n="personales"></span></summary><div class="checks" id="cPersonales"></div></details>
     <details class="grupo"><summary>Básicas · factores del trabajo <span class="n" data-n="trabajo"></span></summary><div class="checks" id="cTrabajo"></div></details>
-    <div class="field"><label>¿Por qué pasó? (análisis, p. ej. 5 porqués)</label><textarea id="iAnalisis" style="min-height:96px;"></textarea></div>
+    <p class="ayuda">Marca las que apliquen. Si la causa no está en la lista, escríbela en «Otra» de cada grupo.</p>
+  </div>
+  <div class="card">
+    <h2>¿Por qué pasó? · 5 porqués</h2>
+    <p class="ayuda" style="margin-top:-4px;">Empieza por lo que pasó y pregunta «¿por qué?» hasta llegar a la causa raíz (lo que, si se corrige, evita que se repita). No hace falta llenar los 5.</p>
+    <div id="iPorques"></div>
+    <div class="field"><label>Causa raíz</label><input type="text" id="iRaiz" placeholder="Ej.: no hay procedimiento de bloqueo para el mantenimiento de la pulidora"></div>
+    <div class="field"><label>Análisis adicional (opcional)</label><textarea id="iAnalisis" style="min-height:80px;"></textarea></div>
     <div class="field"><label>Conclusiones y lecciones aprendidas</label><textarea id="iConclusiones"></textarea></div>
   </div>
-  <div class="aviso info">Las <b>medidas</b> (controles a implementar) se registran como acciones del plan de acción desde el reporte: así quedan con responsable, fecha y cierre.</div>
+  <div class="card">
+    <h2>Medidas por causa</h2>
+    <p class="ayuda" style="margin-top:-4px;">Cada causa encontrada necesita su medida. Toca «+ Acción» y queda en el plan de acción con responsable y fecha.</p>
+    <div id="iMedidas"></div>
+  </div>
   <div class="fila-btn">
     <button type="button" class="btn ghost" id="btnGuardarInv">Guardar avance</button>
     <button type="button" class="btn verde" id="btnCerrarInv">Terminar investigación</button>
@@ -174,6 +202,7 @@ details.grupo summary .n{font-weight:600;color:var(--muted);font-size:12px;}
 <script src="empresa.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
+<script src="valida.js"></script>
 <script src="sgsst-ui.js"></script>
 <script>
 OfflineBanner.init();
@@ -420,16 +449,65 @@ function abrirInvestigacion(){
   $('iCodigo').textContent = actual.id + ' · ' + actual.clase;
   $('iHechos').value = inv.hechos || actual.descripcion || '';
   $('iAnalisis').value = inv.analisis || ''; $('iConclusiones').value = inv.conclusiones || '';
-  const marcar = (cont, lista, sel)=> { $(cont).innerHTML = lista.map((t)=> '<label><input type="checkbox" value="' + esc(t) + '"' + ((sel || []).indexOf(t) !== -1 ? ' checked' : '') + '><span>' + esc(t) + '</span></label>').join(''); };
+  const marcar = (cont, lista, sel)=> { const propias = (sel || []).filter((t)=> lista.indexOf(t) === -1);
+    $(cont).innerHTML = lista.concat(propias).map((t)=> '<label' + (lista.indexOf(t) === -1 ? ' class="propia"' : '') + '><input type="checkbox" value="' + esc(t) + '"' + ((sel || []).indexOf(t) !== -1 ? ' checked' : '') + '><span>' + esc(t) + '</span></label>').join('') +
+      '<div class="otra-causa"><input type="text" placeholder="Otra: escribe la causa" maxlength="160" aria-label="Otra causa"><button type="button" class="btn-mini">Agregar</button></div>'; };
+  const pq = inv.porques && inv.porques.length ? inv.porques : [''];
+  $('iPorques').innerHTML = ''; pq.forEach((t)=> agregarPorque(t)); $('iRaiz').value = inv.raiz || '';
   const c = inv.causas || {};
   marcar('cActos', CAUSAS.actos, c.actos); marcar('cCondiciones', CAUSAS.condiciones, c.condiciones); marcar('cPersonales', CAUSAS.personales, c.personales); marcar('cTrabajo', CAUSAS.trabajo, c.trabajo);
-  contarCausas();
+  contarCausas(); pintarMedidas();
   $('iEquipo').innerHTML = ''; padsEquipo = 0;
   const eq = inv.equipo && inv.equipo.length ? inv.equipo : [{ rol:'Jefe inmediato o supervisor' }, { rol:'Representante del COPASST o vigía' }, { rol:'Responsable de SST' }];
   eq.forEach(agregarIntegrante);
   $('msgInv').textContent = '';
+  pasosInv();
   show('scrInv');
 }
+/* «Otra» causa: se agrega al grupo ya marcada. */
+document.addEventListener('click', (e)=> {
+  const b = e.target.closest('.otra-causa button'); if (!b) return;
+  const inp = b.parentElement.querySelector('input'), t = inp.value.replace(/\s+/g, ' ').trim(); if (!t) { inp.focus(); return; }
+  const g = b.closest('.checks');
+  if ([...g.querySelectorAll('input[type=checkbox]')].some((c)=> c.value.toLowerCase() === t.toLowerCase())) { UI.toast('Esa causa ya está en la lista.'); return; }
+  const l = document.createElement('label'); l.className = 'propia'; l.innerHTML = '<input type="checkbox" checked value="' + esc(t) + '"><span>' + esc(t) + '</span>';
+  b.parentElement.insertAdjacentElement('beforebegin', l); inp.value = ''; contarCausas(); pintarMedidas(); pasosInv();
+});
+document.addEventListener('keydown', (e)=> { if (e.key === 'Enter' && e.target.closest('.otra-causa input')) { e.preventDefault(); e.target.parentElement.querySelector('button').click(); } });
+/* 5 porqués: cada respuesta abre la siguiente pregunta. */
+function agregarPorque(t){
+  const c = $('iPorques'), n = c.children.length + 1; if (n > 5) return;
+  const d = document.createElement('div'); d.className = 'porque';
+  d.innerHTML = '<label>' + (n === 1 ? '¿Por qué ocurrió el evento?' : '¿Por qué? (' + n + ')') + '</label><input type="text" value="' + esc(t || '') + '" placeholder="Porque…">';
+  c.appendChild(d);
+  d.querySelector('input').addEventListener('input', ()=> { const ins = [...c.querySelectorAll('input')]; if (ins[ins.length - 1].value.trim() && ins.length < 5) agregarPorque(''); pasosInv(); });
+}
+/* Medidas: cada causa marcada con su botón para crear la acción. */
+function pintarMedidas(){
+  const sel = [...document.querySelectorAll('#cActos input:checked, #cCondiciones input:checked, #cPersonales input:checked, #cTrabajo input:checked')].map((c)=> c.value);
+  const ya = new Set((acciones || []).map((a)=> String((a.resumen || {}).hallazgo || '')));
+  $('iMedidas').innerHTML = sel.length ? sel.map((t, i)=> '<div class="medida"><span>' + esc(t) + '</span>' + (ya.has('Causa: ' + t) ? '<span class="chip ok">Con acción</span>' : '<button type="button" class="btn-mini" data-med="' + i + '">+ Acción</button>') + '</div>').join('')
+    : '<div class="m" style="font-size:13px;color:var(--muted);">Marca las causas arriba y aquí aparecen para asignarles su medida.</div>';
+  $('iMedidas').querySelectorAll('[data-med]').forEach((b)=> b.addEventListener('click', ()=> {
+    const t = sel[+b.dataset.med], origen = actual.clase === AT ? 'Accidente de trabajo' : actual.clase === 'Incidente' ? 'Incidente' : 'Reporte de acto/condición';
+    UI.nuevaAccion({ origen, origenRef: actual.id, hallazgo: 'Causa: ' + t, centro: actual.centro, prioridad: 'Alta', tipoAccion: 'Correctiva' }, async (r)=> {
+      await SGSST.enviar({ action:'parche', tipo:'reporte', id: actual.id, campos: {}, agregar: { acciones: [r.id] } });
+      actual.acciones = (actual.acciones || []).concat([r.id]);
+      (acciones = acciones || []).push({ id: r.id, estado: 'ABIERTA', resumen: { hallazgo: 'Causa: ' + t } }); pintarMedidas(); pasosInv(); cargarAcciones();
+    });
+  }));
+}
+/* Avance de la investigación (Res. 1401 de 2007). */
+function pasosInv(){
+  const eq = [...$('iEquipo').querySelectorAll('.equipo-inv')].filter((d)=> d.querySelector('.nom').value.trim());
+  const nCausas = document.querySelectorAll('#cActos input:checked, #cCondiciones input:checked, #cPersonales input:checked, #cTrabajo input:checked').length;
+  const P = [['Equipo', eq.length >= 2], ['Hechos', !!$('iHechos').value.trim()], ['Causas', nCausas > 0], ['Por qué', !!($('iRaiz').value.trim() || [...$('iPorques').querySelectorAll('input')].some((x)=> x.value.trim()))], ['Medidas', nCausas > 0 && !$('iMedidas').querySelector('[data-med]')], ['Firmas', eq.length >= 2 && eq.every((d)=> UI.firma('padInv' + d.dataset.n))]];
+  const h = P.filter((x)=> x[1]).length;
+  $('iPasos').innerHTML = '<div class="pi-top"><b>Avance: ' + h + ' de ' + P.length + '</b><span>' + (h === P.length ? 'Lista para terminar' : 'Falta: ' + P.filter((x)=> !x[1]).map((x)=> x[0].toLowerCase()).join(', ')) + '</span></div><div class="pi-pasos">' + P.map((x, i)=> '<span class="' + (x[1] ? 'ok' : '') + '">' + (x[1] ? '✓' : i + 1) + ' ' + x[0] + '</span>').join('') + '</div>';
+}
+document.addEventListener('change', (e)=> { if (e.target.closest('#scrInv')) { if (e.target.closest('.checks')) pintarMedidas(); pasosInv(); } });
+document.addEventListener('input', (e)=> { if (e.target.closest('#scrInv') && /iHechos|iRaiz/.test(e.target.id || '') || (e.target.classList && e.target.classList.contains('nom'))) pasosInv(); });
+document.addEventListener('pointerup', (e)=> { if (e.target.closest && e.target.closest('#iEquipo canvas')) setTimeout(pasosInv, 50); });
 function contarCausas(){ document.querySelectorAll('summary span[data-n]').forEach((s)=>{ const id = { actos:'cActos', condiciones:'cCondiciones', personales:'cPersonales', trabajo:'cTrabajo' }[s.dataset.n]; const n = $(id).querySelectorAll('input:checked').length; s.textContent = n ? '· ' + n + ' marcada(s)' : ''; }); }
 document.addEventListener('change', (e)=>{ if (e.target.closest('.checks')) contarCausas(); });
 function agregarIntegrante(p){
@@ -447,6 +525,7 @@ function leerInv(estado){
   const sel = (id)=> [...$(id).querySelectorAll('input:checked')].map((c)=> c.value);
   const prev = actual.investigacion || {};
   return { estado, fecha: estado === 'CERRADA' ? UI.hoy() : (prev.fecha || ''), inicio: prev.inicio || UI.hoy(), hechos: $('iHechos').value.trim(), analisis: $('iAnalisis').value.trim(), conclusiones: $('iConclusiones').value.trim(),
+    porques: [...$('iPorques').querySelectorAll('input')].map((x)=> x.value.trim()).filter(Boolean), raiz: $('iRaiz').value.trim(),
     causas: { actos: sel('cActos'), condiciones: sel('cCondiciones'), personales: sel('cPersonales'), trabajo: sel('cTrabajo') },
     equipo: [...$('iEquipo').querySelectorAll('.equipo-inv')].map((d)=> ({ rol: d.querySelector('.rolTxt').value.trim(), nombre: d.querySelector('.nom').value.trim(), cedula: d.querySelector('.ced').value.trim(), firma: UI.firma('padInv' + d.dataset.n) || null })).filter((x)=> x.nombre) };
 }
@@ -487,7 +566,8 @@ $('btnPdfRep').addEventListener('click', ()=>{
     const c = inv.causas || {}, lista = (t, x)=> '<tr><td class="l" style="width:22%">' + esc(t) + '</td><td>' + ((x || []).length ? (x || []).map(esc).join(' · ') : '—') + '</td></tr>';
     h += UI.seccion('3. Investigación (Res. 1401 de 2007) · ' + (inv.estado === 'CERRADA' ? 'terminada el ' + UI.corta(inv.fecha) : 'en curso'),
       UI.textoLargo(inv.hechos) + '<table>' + lista('Actos subestándar', c.actos) + lista('Condiciones subestándar', c.condiciones) + lista('Factores personales', c.personales) + lista('Factores del trabajo', c.trabajo) + '</table>' +
-      (inv.analisis ? UI.tablaDatos([['Análisis', inv.analisis]]) : '') + (inv.conclusiones ? UI.tablaDatos([['Conclusiones', inv.conclusiones]]) : '') +
+      ((inv.porques || []).length ? '<table><tr><td class="l" colspan="2">5 PORQUÉS</td></tr>' + inv.porques.map((t, i)=> '<tr><td class="l" style="width:22%">¿Por qué? ' + (i + 1) + '</td><td>' + esc(t) + '</td></tr>').join('') + '</table>' : '') +
+      (inv.raiz ? UI.tablaDatos([['Causa raíz', inv.raiz]]) : '') + (inv.analisis ? UI.tablaDatos([['Análisis', inv.analisis]]) : '') + (inv.conclusiones ? UI.tablaDatos([['Conclusiones', inv.conclusiones]]) : '') +
       '<table><tr><th>Rol</th><th>Nombre</th><th>Cédula</th><th>Firma</th></tr>' + (inv.equipo || []).map((x)=> '<tr><td>' + esc(x.rol) + '</td><td>' + esc(x.nombre) + '</td><td>' + esc(x.cedula) + '</td><td>' + UI.firmaHoja(x.firma) + '</td></tr>').join('') + '</table>');
   }
   h += UI.seccion('Acciones (plan de acción)', acciones.length ? '<table><tr><th>Acción</th><th>Responsable</th><th>Compromiso</th><th>Estado</th></tr>' +

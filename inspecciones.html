@@ -34,6 +34,22 @@
 .leyenda span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;background:var(--c);}
 .lst-item .acc{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
 .part{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;}
+.acc-insp .btn.amber{grid-column:1 / -1;}
+/* Etiquetas QR: tamaño, tipos con conteo y lista con casillas */
+.qr-tam,.qr-modo{flex-wrap:wrap;}
+.qr-tam button,.qr-modo button{flex:1 1 0;min-height:48px;padding:6px 6px;line-height:1.2;}
+.qr-tam button small,.qr-modo button small{display:block;font-weight:600;font-size:10.5px;opacity:.8;margin-top:1px;}
+.qr-modo button small{display:inline;margin-left:3px;font-size:12px;}
+.qr-cats{display:grid;gap:6px;margin-bottom:12px;}
+.qr-op{display:flex;align-items:center;gap:10px;min-height:44px;border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;background:#fff;cursor:pointer;font-size:13.5px;line-height:1.25;}
+.qr-op input{width:22px;height:22px;flex:0 0 auto;margin:0;}
+.qr-op span{flex:1;min-width:0;overflow-wrap:anywhere;}
+.qr-op span small{display:block;color:var(--muted);font-size:11.5px;}
+.qr-op > b{background:#eef1f5;border-radius:12px;padding:2px 9px;font-size:12.5px;}
+.qr-op:has(input:checked){border-color:#18232e;background:#f4f6f9;}
+.qr-lista{max-height:46vh;overflow:auto;display:grid;gap:6px;margin-bottom:12px;padding-right:2px;}
+.qr-grupo{font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;margin:6px 0 0;}
+.qr-acc{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}.qr-acc .btn{flex:1 1 140px;margin:0;min-height:40px;}
 </style>
 </head>
 <body>
@@ -49,6 +65,13 @@
   </div>
   <div id="avisoSrv"></div>
   <div id="avisoCopia"></div>
+  <div class="acciones-top acc-insp">
+    <button type="button" class="btn amber" id="btnInspeccionar">✅ Inspeccionar</button>
+    <button type="button" class="btn ghost" id="btnNuevoEq">+ Agregar al inventario</button>
+    <button type="button" class="btn ghost" id="btnQrTodos">🏷️ Etiquetas QR</button>
+    <button type="button" class="btn ghost" id="btnExcel">⬆️ Cargar inventario (tabla o Excel)</button>
+    <button type="button" class="btn ghost" id="btnPdfInv">🖨️ PDF: inventario</button>
+  </div>
   <div class="kpis" id="kpis"></div>
   <div class="tabs" id="tabs">
     <button type="button" class="on" data-tab="pendientes">Por inspeccionar <span class="n" id="nPend">0</span></button>
@@ -59,14 +82,7 @@
   </div>
   <input type="search" class="buscar" id="buscar" placeholder="Buscar por código, nombre o ubicación">
   <div id="lista"><div class="empty">Cargando…</div></div>
-  <div class="fila-btn">
-    <button type="button" class="btn amber" id="btnInspeccionar">✅ Inspeccionar</button>
-    <button type="button" class="btn ghost" id="btnNuevoEq">+ Agregar al inventario</button>
-  </div>
-  <button type="button" class="btn ghost" id="btnExcel">⬆️ Cargar inventario desde Excel</button>
-  <button type="button" class="btn ghost" id="btnPdfInv">🖨️ PDF: inventario y vencimientos</button>
-  <button type="button" class="btn ghost" id="btnQrTodos">🏷️ Etiquetas QR del inventario</button>
-  <div class="version-portal">Portal SSTA · versión v106</div>
+  <div class="version-portal">Portal SSTA · versión v107</div>
 </div>
 
 <!-- ═══════ EQUIPO ═══════ -->
@@ -145,6 +161,7 @@
 <script src="empresa.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
+<script src="valida.js"></script>
 <script src="sgsst-ui.js"></script>
 <script src="registros.js"></script>
 <script src="inspecciones-plantillas.js"></script>
@@ -262,12 +279,27 @@ function abrirEquipo(id){
 }
 function pintarVenc(v){
   const p = PL[$('eqCat').value] || {};
-  $('eqVenc').innerHTML = (p.vencimientos || []).length ? '<div class="grid2">' + p.vencimientos.map((k)=> '<div class="field"><label>' + esc(k) + ' (vence)</label><input type="date" data-venc="' + esc(k) + '" value="' + esc(v[k] || '') + '"></div>').join('') + '</div>' : '';
+  $('eqVenc').innerHTML = (p.vencimientos || []).length ? '<div class="grid2">' + p.vencimientos.map((k)=> '<div class="field"><label>' + esc(k) + ' (vence)</label><input type="date" data-venc="' + esc(k) + '" value="' + esc(v[k] || '') + '"><div class="ayuda" data-av></div></div>').join('') + '</div>' : '';
+  $('eqVenc').querySelectorAll('[data-venc]').forEach(avisoVence);
 }
+/** Debajo de cada fecha de vencimiento: si ya venció o vence en 30 días (avisa, no bloquea). */
+function avisoVence(i){
+  const a = i.parentNode.querySelector('[data-av]'), v = i.value, h = UI.hoy(); if (!a) return;
+  a.textContent = !v ? '' : v < h ? 'Ya venció: el equipo queda en «Atención».' : v <= Festivos.sumarDias(h, 30) ? 'Vence en menos de 30 días.' : '';
+  a.style.color = v && v < h ? 'var(--mal)' : '#7a5800'; a.style.fontWeight = '700';
+}
+$('eqVenc').addEventListener('change', (e)=> { if (e.target.dataset.venc != null) avisoVence(e.target); });
 $('eqCat').addEventListener('change', ()=>{ const p = pl($('eqCat').value); $('eqFrec').value = p.frecuencia; pintarVenc({}); });
 $('btnGuardarEq').addEventListener('click', async ()=>{
   const cat = $('eqCat').value, p = PL[cat];
-  if (!$('eqCodigo').value.trim() && !$('eqNombre').value.trim()) { $('msgEq').textContent = 'Escribe al menos el código o la descripción.'; return; }
+  // Qué falta o está mal: se marca cada campo y se dice debajo del botón.
+  const cod = $('eqCodigo').value.trim(), otroIgual = cod && equipos.find((x)=> (!eqActual || x.id !== eqActual.id) && UI.norm(x.resumen.codigo) === UI.norm(cod));
+  const reglas = [{ el: $('eqCodigo'), etiqueta: 'Código / serial', error: ()=> !cod && !$('eqNombre').value.trim() ? 'escribe el código o la descripción' : otroIgual ? 'ya lo tiene ' + (otroIgual.resumen.nombre || 'otro equipo') + ' en el inventario' : '' }];
+  $('eqVenc').querySelectorAll('[data-venc]').forEach((i)=> reglas.push({ el: i, etiqueta: i.dataset.venc + ' (vence)', error: ()=> i.value ? Valida.fecha(i.value) : '' }));
+  $('msgEq').textContent = '';
+  if (Valida.revisar($('scrEquipo'), reglas, $('msgEq')).length) return;
+  const vencidas = [...$('eqVenc').querySelectorAll('[data-venc]')].filter((i)=> i.value && i.value < UI.hoy()).map((i)=> i.dataset.venc + ' (' + UI.corta(i.value) + ')');
+  if (vencidas.length && !confirm('Ya está vencida: ' + vencidas.join(', ') + '. El equipo queda en «Atención» hasta renovarla. ¿Guardar así?')) return;
   const venc = {}; $('eqVenc').querySelectorAll('[data-venc]').forEach((i)=> { venc[i.dataset.venc] = i.value; });
   // Fechas que ya no pide la lista: se vacían (el parche mezcla y si no, quedarían para siempre).
   if (eqActual) Object.keys(eqActual.vencimientos || {}).forEach((k)=> { if (!(k in venc)) venc[k] = ''; });
@@ -295,38 +327,108 @@ function enlaceEquipo(id){
   const cod = typeof MultiEmpresa !== 'undefined' && MultiEmpresa.activo && EMPRESA.codigo ? '?e=' + encodeURIComponent(EMPRESA.codigo) : '';
   return base + 'inspecciones.html' + cod + '#ins=' + encodeURIComponent(id);
 }
-function etiquetaHTML(e){
-  const r = e.resumen || e, p = pl(r.categoria);
+/* Tamaños de etiqueta en hoja carta (215,9 × 279,4 mm; margen 10 mm → 195 × 259 mm útiles).
+   Ancho y alto fijos en mm: la grilla queda centrada y ninguna etiqueta se corta en el borde. */
+const TAM_QR = {
+  grande:  { n: 'Grande',  col: 2, fil: 3, w: 95, h: 80, qr: 54, cod: 16, nom: 10, ubi: 8.5, pie: true },
+  mediana: { n: 'Mediana', col: 3, fil: 4, w: 63, h: 60, qr: 36, cod: 12.5, nom: 8.5, ubi: 7.5, pie: true },
+  pequena: { n: 'Pequeña', col: 4, fil: 6, w: 48, h: 40, qr: 24, cod: 10, nom: 7, ubi: 0, pie: false }
+};
+const porHojaQR = (t)=> TAM_QR[t].col * TAM_QR[t].fil;
+function etiquetaHTML(e, tam){
+  const r = e.resumen || e, p = pl(r.categoria), T = TAM_QR[tam] || TAM_QR.mediana;
   let img = ''; try { img = QR.comoImagen(enlaceEquipo(e.id), { px: 360, margen: 2 }); } catch (err) { return ''; }
-  return '<td style="width:33.3%;padding:3mm;text-align:center;vertical-align:top;border:1px dashed #999;">' +
-    '<img src="' + UI.src(img) + '" alt="QR" style="width:40mm;height:40mm;image-rendering:pixelated;">' +
-    '<div style="font-size:13pt;font-weight:700;margin-top:1mm;">' + esc(r.codigo || '') + '</div>' +
-    '<div style="font-size:9pt;">' + esc(r.nombre || p.nombre) + '</div>' +
-    '<div style="font-size:8pt;color:#444;">' + esc(r.ubicacion || '') + '</div>' +
-    '<div style="font-size:7.5pt;margin-top:1mm;">Escanea con la cámara para inspeccionarlo</div><div style="font-size:7pt;color:#444;">' + esc(EMPRESA.nombreCorto || EMPRESA.nombre || '') + '</div></td>';
+  const linea = 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;';
+  return '<div class="qr-et" style="width:' + T.w + 'mm;height:' + T.h + 'mm;box-sizing:border-box;border:1px dashed #888;padding:2mm 2mm 1.5mm;text-align:center;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;break-inside:avoid;page-break-inside:avoid;font-family:Arial,Helvetica,sans-serif;color:#000;">' +
+    '<img src="' + UI.src(img) + '" alt="QR ' + esc(r.codigo || '') + '" style="width:' + T.qr + 'mm;height:' + T.qr + 'mm;image-rendering:pixelated;flex:0 0 auto;">' +
+    '<div style="font-size:' + T.cod + 'pt;font-weight:700;line-height:1.1;margin-top:1mm;' + linea + '">' + esc(r.codigo || p.nombre) + '</div>' +
+    '<div style="font-size:' + T.nom + 'pt;line-height:1.15;' + linea + '">' + esc(r.nombre || p.nombre) + '</div>' +
+    (T.ubi && r.ubicacion ? '<div style="font-size:' + T.ubi + 'pt;color:#333;line-height:1.15;' + linea + '">' + esc(r.ubicacion) + '</div>' : '') +
+    (T.pie ? '<div style="font-size:' + (T.ubi - 1) + 'pt;margin-top:.8mm;line-height:1.1;">Escanea con la cámara para inspeccionarlo · ' + esc(EMPRESA.nombreCorto || EMPRESA.nombre || '') + '</div>' : '') + '</div>';
 }
-function imprimirEtiquetas(lista){
-  const celdas = lista.map(etiquetaHTML).filter(Boolean);
-  if (!celdas.length) { UI.toast('No hay equipos para las etiquetas.', 'mal'); return; }
-  const filas = []; for (let i = 0; i < celdas.length; i += 3) filas.push('<tr>' + celdas.slice(i, i + 3).join('') + (celdas.length - i < 3 ? '<td style="border:0;"></td>'.repeat(3 - (celdas.length - i)) : '') + '</tr>');
-  // 4 filas (12 etiquetas) por hoja carta
-  const hojas = []; for (let i = 0; i < filas.length; i += 4) hojas.push((i ? '' : UI.cabecera('SG-ETIQUETAS-QR', 'ETIQUETAS QR DE EQUIPOS E INSTALACIONES', 'Recorta y pega cada una en su equipo (mejor plastificada)')) + '<table style="border-collapse:collapse;width:100%;">' + filas.slice(i, i + 4).join('') + '</table>');
+/** Hojas carta con las etiquetas: cada hoja lleva su título corto y una grilla de tamaño fijo centrada. */
+function hojasEtiquetas(lista, tam, titulo){
+  const T = TAM_QR[tam] || TAM_QR.mediana, n = porHojaQR(tam);
+  const celdas = lista.map((e)=> etiquetaHTML(e, tam)).filter(Boolean);
+  const hojas = [], total = Math.ceil(celdas.length / n);
+  for (let i = 0; i < celdas.length; i += n) hojas.push('<div style="font-family:Arial,Helvetica,sans-serif;font-size:8pt;display:flex;justify-content:space-between;gap:6mm;margin:0 auto 2mm;width:' + (T.col * T.w) + 'mm;max-width:100%;"><b>ETIQUETAS QR · ' + esc(titulo || 'INVENTARIO') + '</b><span>' + esc(EMPRESA.nombreCorto || EMPRESA.nombre || '') + ' · hoja ' + (i / n + 1) + ' de ' + total + ' · recórtalas por la línea y pégalas (mejor plastificadas)</span></div>' +
+    '<div class="qr-hoja" style="display:grid;grid-template-columns:repeat(' + T.col + ',' + T.w + 'mm);grid-auto-rows:' + T.h + 'mm;justify-content:center;gap:0;margin:0 auto;">' + celdas.slice(i, i + n).join('') + '</div>');
+  return hojas;
+}
+function imprimirEtiquetas(lista, tam, titulo){
+  const hojas = hojasEtiquetas(lista, tam || 'mediana', titulo);
+  if (!hojas.length) { UI.toast('No hay equipos para las etiquetas.', 'mal'); return false; }
   UI.imprimir(hojas);
+  return true;
 }
+const segTam = (sel)=> '<div class="seg-btn qr-tam" role="group" aria-label="Tamaño de la etiqueta">' + Object.keys(TAM_QR).map((k)=> '<button type="button" data-tam="' + k + '" class="' + (k === sel ? 'on' : '') + '">' + TAM_QR[k].n + '<small>' + porHojaQR(k) + ' por hoja</small><small>QR de ' + TAM_QR[k].qr + ' mm</small></button>').join('') + '</div>';
+let tamQR = 'mediana'; try { tamQR = TAM_QR[localStorage.getItem('ssta-qr-tam')] ? localStorage.getItem('ssta-qr-tam') : 'mediana'; } catch (e) {}
+const fijarTam = (k)=> { tamQR = k; try { localStorage.setItem('ssta-qr-tam', k); } catch (e) {} };
+const ordenEq = (a, b)=> String(pl(a.resumen.categoria).nombre).localeCompare(String(pl(b.resumen.categoria).nombre)) || String(a.resumen.codigo).localeCompare(String(b.resumen.codigo), 'es', { numeric: true });
+
+/* Una etiqueta (desde el equipo): se ve el QR, se elige el tamaño y cuántas copias. */
 $('btnQrEq').addEventListener('click', ()=> {
   if (!eqActual) return;
-  const url = enlaceEquipo(eqActual.id), m = UI.modal('<h3>🏷️ Etiqueta QR</h3><p class="ayuda">Pégala en el equipo. Quien la escanee con la cámara del celular abre la inspección de <b>' + esc(eqActual.codigo || eqActual.nombre) + '</b> directamente.</p>' +
-    '<div style="text-align:center;"><canvas id="qrEq" style="width:220px;height:220px;image-rendering:pixelated;"></canvas><div style="font-size:12px;color:var(--muted);word-break:break-all;margin-top:6px;">' + esc(url) + '</div></div>' +
-    '<button type="button" class="btn amber" id="qrImp">🖨️ Imprimir la etiqueta</button><button type="button" class="btn ghost" data-cerrar>Cerrar</button>');
+  const url = enlaceEquipo(eqActual.id), m = UI.modal('<h3>Etiqueta QR</h3><p class="ayuda">Pégala en el equipo. Quien la escanee con la cámara del celular abre la inspección de <b>' + esc(eqActual.codigo || eqActual.nombre) + '</b> directamente.</p>' +
+    '<div style="text-align:center;"><canvas id="qrEq" style="width:200px;height:200px;image-rendering:pixelated;"></canvas><div style="font-size:12px;color:var(--muted);word-break:break-all;margin-top:6px;">' + esc(url) + '</div></div>' +
+    '<div class="field"><label>Tamaño</label>' + segTam(tamQR) + '</div>' +
+    '<div class="field"><label for="qrCopias">Copias</label><input type="number" id="qrCopias" min="1" max="24" value="1" inputmode="numeric"></div>' +
+    '<button type="button" class="btn amber" id="qrImp">Imprimir o guardar PDF</button><button type="button" class="btn ghost" data-cerrar>Cerrar</button>');
   try { QR.dibujar(m.el.querySelector('#qrEq'), url, { px: 440, margen: 2 }); } catch (e) { m.el.querySelector('#qrEq').replaceWith(document.createTextNode('El enlace es demasiado largo para un QR.')); }
-  m.el.querySelector('#qrImp').addEventListener('click', ()=> { m.cerrar(); imprimirEtiquetas([Object.assign({ id: eqActual.id }, { resumen: eqActual })]); });
+  m.el.querySelector('.qr-tam').addEventListener('click', (e)=> { const b = e.target.closest('[data-tam]'); if (!b) return; fijarTam(b.dataset.tam); m.el.querySelectorAll('[data-tam]').forEach((x)=> x.classList.toggle('on', x === b)); });
+  m.el.querySelector('#qrImp').addEventListener('click', ()=> {
+    const c = Math.round(Number(m.el.querySelector('#qrCopias').value));
+    if (!(c >= 1 && c <= 24)) { Valida.marcar(m.el.querySelector('#qrCopias'), 'de 1 a 24 copias'); return; }
+    m.cerrar(); imprimirEtiquetas(Array.from({ length: c }, ()=> ({ id: eqActual.id, resumen: eqActual })), tamQR, eqActual.codigo || eqActual.nombre);
+  });
 });
-$('btnQrTodos').addEventListener('click', ()=> {
-  const l = equipos.filter((x)=> x.resumen.activo !== false).sort((a, b)=> String(a.resumen.categoria).localeCompare(String(b.resumen.categoria)) || String(a.resumen.codigo).localeCompare(String(b.resumen.codigo)));
-  if (!l.length) { UI.toast('El inventario está vacío.', 'mal'); return; }
-  if (l.length > 60 && !confirm('Son ' + l.length + ' etiquetas (' + Math.ceil(l.length / 12) + ' hojas). ¿Imprimirlas todas?')) return;
-  imprimirEtiquetas(l);
-});
+
+/* Varias etiquetas: todas, por tipo de equipo (con conteo) o eligiendo con casillas. */
+function abrirEtiquetas(preElegidos){
+  const act = equipos.filter((x)=> x.resumen.activo !== false).sort(ordenEq);
+  if (!act.length) { UI.toast('El inventario está vacío.', 'mal'); return; }
+  const cats = []; act.forEach((e)=> { const c = e.resumen.categoria; let k = cats.find((x)=> x.id === c); if (!k) { k = { id: c, p: pl(c), n: 0 }; cats.push(k); } k.n++; });
+  let modo = preElegidos ? 'elegir' : 'todos';
+  const elegidos = new Set(preElegidos || []), tipos = new Set();
+  const m = UI.modal('<h3>Etiquetas QR del inventario</h3><p class="ayuda">Cada etiqueta abre la inspección de su equipo al escanearla. Salen centradas en hoja carta, con línea para recortar.</p>' +
+    '<div class="field"><label>¿Cuáles?</label><div class="seg-btn qr-modo" role="group">' +
+      '<button type="button" data-modo="todos">Todos <small>' + act.length + '</small></button><button type="button" data-modo="tipo">Por tipo</button><button type="button" data-modo="elegir">Elegir uno o varios</button></div></div>' +
+    '<div data-p="tipo" hidden><div class="qr-cats">' + cats.map((c)=> '<label class="qr-op"><input type="checkbox" data-tipo="' + esc(c.id) + '"><span>' + c.p.icono + ' ' + esc(c.p.nombre) + '</span><b>' + c.n + '</b></label>').join('') + '</div></div>' +
+    '<div data-p="elegir" hidden><input type="search" class="buscar" id="qrBus" placeholder="Buscar por código, nombre o ubicación" style="margin-bottom:6px;">' +
+      '<div class="qr-acc"><button type="button" class="btn mini ghost" data-marcar="1">Marcar los que se ven</button><button type="button" class="btn mini ghost" data-marcar="0">Quitar todos</button></div>' +
+      '<div class="qr-lista" id="qrLista">' + cats.map((c)=> '<div class="qr-grupo" data-g="' + esc(c.id) + '">' + c.p.icono + ' ' + esc(c.p.nombre) + ' (' + c.n + ')</div>' +
+        act.filter((e)=> e.resumen.categoria === c.id).map((e)=> '<label class="qr-op" data-txt="' + esc(UI.norm([e.resumen.codigo, e.resumen.nombre, e.resumen.ubicacion, c.p.nombre].join(' '))) + '"><input type="checkbox" data-eqq="' + esc(e.id) + '"' + (elegidos.has(e.id) ? ' checked' : '') + '><span><b>' + esc(e.resumen.codigo || '—') + '</b> · ' + esc(e.resumen.nombre || c.p.nombre) + (e.resumen.ubicacion ? '<small>' + esc(e.resumen.ubicacion) + '</small>' : '') + '</span></label>').join('')).join('') + '</div></div>' +
+    '<div class="field"><label>Tamaño de la etiqueta</label>' + segTam(tamQR) + '</div>' +
+    '<div id="qrRes" class="aviso info" style="margin-bottom:10px;"></div><div id="qrMsg"></div>' +
+    '<button type="button" class="btn amber" id="qrImp">Imprimir o guardar PDF</button><button type="button" class="btn ghost" data-cerrar>Cerrar</button>', true);
+  const $m = (s)=> m.el.querySelector(s);
+  const lista = ()=> modo === 'todos' ? act : modo === 'tipo' ? act.filter((e)=> tipos.has(e.resumen.categoria)) : act.filter((e)=> elegidos.has(e.id));
+  const resumen = ()=> { const n = lista().length, h = Math.ceil(n / porHojaQR(tamQR));
+    $m('#qrRes').innerHTML = n ? 'Se imprimen <b>' + n + '</b> etiqueta(s) ' + TAM_QR[tamQR].n.toLowerCase() + '(s) en <b>' + h + '</b> hoja(s) carta (' + porHojaQR(tamQR) + ' por hoja).' : (modo === 'tipo' ? 'Marca uno o varios tipos de equipo.' : 'Marca los equipos que quieres imprimir.');
+    $m('#qrRes').className = 'aviso ' + (n ? 'info' : 'amar'); if (n) $m('#qrMsg').innerHTML = ''; };
+  const verModo = (k)=> { modo = k; m.el.querySelectorAll('[data-modo]').forEach((b)=> b.classList.toggle('on', b.dataset.modo === k)); m.el.querySelectorAll('[data-p]').forEach((d)=> { d.hidden = d.dataset.p !== k; }); resumen(); };
+  $m('.qr-modo').addEventListener('click', (e)=> { const b = e.target.closest('[data-modo]'); if (b) verModo(b.dataset.modo); });
+  $m('.qr-tam').addEventListener('click', (e)=> { const b = e.target.closest('[data-tam]'); if (!b) return; fijarTam(b.dataset.tam); m.el.querySelectorAll('.qr-tam [data-tam]').forEach((x)=> x.classList.toggle('on', x === b)); resumen(); });
+  m.el.addEventListener('change', (e)=> { const t = e.target;
+    if (t.dataset.tipo) { if (t.checked) tipos.add(t.dataset.tipo); else tipos.delete(t.dataset.tipo); }
+    if (t.dataset.eqq) { if (t.checked) elegidos.add(t.dataset.eqq); else elegidos.delete(t.dataset.eqq); }
+    resumen(); });
+  $m('#qrBus').addEventListener('input', ()=> { const q = UI.norm($m('#qrBus').value).trim();
+    m.el.querySelectorAll('#qrLista label.qr-op').forEach((l)=> { l.hidden = !!q && !l.dataset.txt.includes(q); });
+    m.el.querySelectorAll('#qrLista .qr-grupo').forEach((g)=> { g.hidden = ![...m.el.querySelectorAll('#qrLista label.qr-op')].some((l)=> !l.hidden && l.querySelector('[data-eqq]') && act.find((e)=> e.id === l.querySelector('[data-eqq]').dataset.eqq).resumen.categoria === g.dataset.g); }); });
+  m.el.querySelectorAll('[data-marcar]').forEach((b)=> b.addEventListener('click', ()=> { const si = b.dataset.marcar === '1';
+    m.el.querySelectorAll('#qrLista label.qr-op').forEach((l)=> { if (si && l.hidden) return; const c = l.querySelector('input'); c.checked = si; if (si) elegidos.add(c.dataset.eqq); else elegidos.delete(c.dataset.eqq); }); resumen(); }));
+  $m('#qrImp').addEventListener('click', ()=> {
+    const l = lista();
+    if (!l.length) { $m('#qrMsg').innerHTML = '<div class="v-resumen"><b>Falta:</b> ' + (modo === 'tipo' ? 'marcar al menos un tipo de equipo' : 'marcar al menos un equipo') + '.</div>'; return; }
+    const hojas = Math.ceil(l.length / porHojaQR(tamQR));
+    if (hojas > 6 && !confirm('Son ' + l.length + ' etiquetas (' + hojas + ' hojas). ¿Imprimirlas todas?')) return;
+    const titulo = modo === 'todos' ? 'TODO EL INVENTARIO' : modo === 'tipo' ? cats.filter((c)=> tipos.has(c.id)).map((c)=> c.p.nombre.toUpperCase()).join(', ') : 'EQUIPOS ELEGIDOS';
+    m.cerrar(); imprimirEtiquetas(l, tamQR, titulo);
+  });
+  verModo(modo);
+}
+$('btnQrTodos').addEventListener('click', ()=> abrirEtiquetas());
 
 /* ── Inspeccionar ── */
 $('btnInspeccionar').addEventListener('click', ()=>{
@@ -426,7 +528,9 @@ $('btnGuardarInsp').addEventListener('click', async ()=>{
   if (CON_PARTICIPANTES.includes(tipoI) && !part.length) { msg.textContent = 'En una inspección ' + (tipoI === 'COPASST' ? 'del COPASST' : 'gerencial') + ' anota a los participantes.'; $('cardPart').scrollIntoView({ block: 'center' }); return; }
   const sinFirma = CON_PARTICIPANTES.includes(tipoI) ? part.find((x)=> !x.firma) : null;
   if (sinFirma) { msg.textContent = 'Falta la firma de ' + sinFirma.nombre + '.'; $('cardPart').scrollIntoView({ block: 'center' }); return; }
-  if (!$('inInsp').value.trim()) { msg.textContent = 'Falta el nombre del inspector.'; $('inInsp').focus(); return; }
+  if (Valida.revisar($('scrInsp'), [{ el: $('inFecha'), etiqueta: 'Fecha', error: ()=> Valida.pasada($('inFecha').value) },
+    { el: $('inInsp'), etiqueta: CON_PARTICIPANTES.includes(tipoI) ? 'Quien dirige' : 'Inspector', error: ()=> $('inInsp').value.trim() ? '' : 'falta el nombre' },
+    { el: $('inInspCC'), etiqueta: 'Cédula del inspector', error: ()=> $('inInspCC').value.trim() ? Valida.cedula($('inInspCC').value) : '' }], msg).length) return;
   const firma = UI.firma('padInspector');
   if (!firma) { msg.textContent = 'Falta la firma del inspector.'; return; }
   try { localStorage.setItem('ssta-reporta', $('inInsp').value.trim()); } catch (e) {}

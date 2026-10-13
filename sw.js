@@ -17,7 +17,7 @@
      la versión más nueva del formulario cuando hay señal).
    ============================================================ */
 
-const CACHE_NAME = 'ssta-portal-v106';
+const CACHE_NAME = 'ssta-portal-v107';
 
 const PAGES = [
   './',
@@ -94,6 +94,15 @@ const STATIC_ASSETS = [
   './fonts/plex-sans-500.woff2',
   './fonts/plex-sans-600.woff2',
   './kit-documental.js',
+  './valida.js',
+  './comite-emergencias.html',
+  './percepcion-peligros.html',
+  './encuesta-cliente.html',
+  './proveedores.html',
+  './proveedores-catalogo.js',
+  './gtc45-catalogo.js',
+  './informe.html',
+  './informe-reglas.js',
   './asesor.html',
   './config.js',
   './common.css',

@@ -15,6 +15,7 @@
 .preg label input{width:20px;height:20px;flex:0 0 20px;margin-top:0;}
 .preg.bien label.ok{background:#e3f4ea;} .preg.mal label.ok{background:#e3f4ea;} .preg.mal label.elegida{background:#fdf1ef;}
 .nota{font-size:28px;font-weight:800;text-align:center;margin:8px 0;}
+.preg.sin-resp{border-left:4px solid #e3b2aa;padding-left:8px;}
 </style>
 </head>
 <body>
@@ -34,13 +35,14 @@
     <button type="button" data-tab="banco">Temas y preguntas</button>
   </div>
   <div id="panel"><div class="empty">Cargando…</div></div>
-  <div class="version-portal">Portal SSTA · versión v106</div>
+  <div class="version-portal">Portal SSTA · versión v107</div>
 </div>
 <div class="screen" id="scrInd"></div>
 </div>
 <script src="empresa.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
+<script src="valida.js"></script>
 <script src="sgsst-ui.js"></script>
 <script src="registros.js"></script>
 <script>
@@ -99,8 +101,8 @@ function pintar(){
 }
 function pintarRegistros(panel){
   const l = de('induccion').sort((a, b)=> String(b.fecha).localeCompare(String(a.fecha)));
-  panel.innerHTML = '<input type="search" class="buscar" id="bInd" placeholder="Buscar por nombre o cédula"><div id="lInd"></div><button type="button" class="btn amber" id="nInd">+ Nueva inducción o reinducción</button>' +
-    '<button type="button" class="btn ghost" id="pInd">🖨️ Registro de inducciones del año (PDF)</button>';
+  panel.innerHTML = '<div class="acciones-top"><button type="button" class="btn amber" id="nInd">+ Nueva inducción o reinducción</button><button type="button" class="btn ghost" id="pInd">Registro de inducciones del año (PDF)</button></div>' +
+    '<input type="search" class="buscar" id="bInd" placeholder="Buscar por nombre o cédula"><div id="lInd"></div>';
   const lista = ()=> { const q = UI.norm($('bInd').value).trim();
     $('lInd').innerHTML = l.filter((x)=> !q || UI.norm(x.resumen.nombre + ' ' + x.resumen.cedula).includes(q)).map((x)=> { const c = x.estado === 'APROBADA' ? 'ok' : x.estado === 'REPROBADA' ? 'mal' : 'gris';
       return '<button type="button" class="item ' + c + '" data-id="' + esc(x.id) + '"><div class="fila"><div><div class="t">' + esc(x.resumen.nombre) + ' · ' + esc(x.resumen.tipoInduccion) + '</div><div class="m">' + esc(UI.corta(x.fecha)) +
@@ -131,7 +133,7 @@ function nueva(pre){
   const s = $('scrInd');
   s.innerHTML = '<div class="hdr"><a class="back" href="#" data-volver>← Volver</a><div class="eyebrow">Inducción en SST</div><h1>Nueva inducción</h1><p>La persona responde la evaluación en este mismo celular</p></div>' +
     '<div class="card"><div class="grid2"><div class="field"><label>Tipo</label><select id="iTipo">' + TIPOS.map((t)=> '<option' + (t === pre.tipo ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '</select></div><div class="field"><label>Fecha</label><input type="date" id="iFecha" value="' + UI.hoy() + '"></div></div>' +
-    '<div class="field"><label>Nombre *</label><input type="text" id="iNom" value="' + esc(pre.nombre || '') + '" placeholder="Escribe para buscar"></div>' +
+    '<div class="field"><label>Nombre completo *</label><input type="text" id="iNom" value="' + esc(pre.nombre || '') + '" placeholder="Escribe para buscar"></div><div id="iPrevia"></div>' +
     '<div class="grid2"><div class="field"><label>Cédula *</label><input type="text" id="iCed" inputmode="numeric" value="' + esc(pre.cedula || '') + '"></div><div class="field"><label>Cargo</label><input type="text" id="iCargo" value="' + esc(pre.cargo || '') + '"></div></div>' +
     '<div class="field"><label>Empresa (si es contratista o visitante)</label><input type="text" id="iEmp" value="' + esc(pre.empresa || '') + '"></div>' +
     '<div class="field"><label>Dictó</label><input type="text" id="iDicto" value="' + esc(quienSoy()) + '"></div></div>' +
@@ -140,8 +142,13 @@ function nueva(pre){
       PREGUNTAS.map((q, i)=> '<div class="preg" data-q="' + i + '"><div class="q">' + (i + 1) + '. ' + esc(q[0]) + '</div>' + q[1].map((o, j)=> '<label><input type="radio" name="q' + i + '" value="' + j + '"> ' + esc(o) + '</label>').join('') + '</div>').join('') +
     '</div><button type="button" class="btn" id="iCalificar">Calificar</button><div id="iNota"></div></div>' +
     '<div class="card"><div class="field"><label>Firma de la persona *</label>' + UI.padHTML('fInd') + '</div>' +
-    '<button type="button" class="btn amber" id="iOk">Guardar</button><div class="status-msg" id="iMsg"></div></div>';
+    '<div class="status-msg" id="iMsg"></div><button type="button" class="btn amber" id="iOk">Guardar</button></div>';
   show('scrInd');
+  Valida.soloNombre($('iNom')); Valida.soloDigitos($('iCed'), 10);
+  // Reinducción: muestra la última inducción de la persona (se busca por cédula).
+  const previa = ()=> { const k = Habilitacion.clave($('iCed').value); const u = k ? de('induccion').filter((x)=> Habilitacion.clave(x.resumen.cedula) === k && x.estado !== 'REPROBADA').sort((a, b)=> String(b.fecha).localeCompare(String(a.fecha)))[0] : null;
+    $('iPrevia').innerHTML = u ? '<div class="aviso info" style="margin:-4px 0 10px;">Última: ' + esc(u.resumen.tipoInduccion) + ' del ' + esc(UI.corta(u.fecha)) + (u.resumen.vence ? ' · vence ' + esc(UI.corta(u.resumen.vence)) : '') + '. ' + ($('iTipo').value === 'Inducción' ? 'Ya tuvo inducción: lo que corresponde es <b>reinducción</b>.' : '') + '</div>' : ''; };
+  $('iCed').addEventListener('input', previa); $('iTipo').addEventListener('change', previa); previa();
   UI.activarPad('fInd');
   UI.autocompletar($('iNom'), (p)=> { $('iNom').value = p.nombre; $('iCed').value = p.cedula || ''; $('iCargo').value = p.cargo || ''; });
   let nota = null;
@@ -162,11 +169,17 @@ function nueva(pre){
   $('iCalificar').addEventListener('click', calificar);
   $('iOk').addEventListener('click', async ()=> {
     const msg = $('iMsg');
-    if (!$('iNom').value.trim() || !Habilitacion.clave($('iCed').value)) { msg.textContent = 'Faltan el nombre y la cédula.'; return; }
     const temas = TEMAS.filter((t, i)=> s.querySelector('[data-tema="' + i + '"]').checked);
-    if (!temas.length) { msg.textContent = 'Marca los temas tratados.'; return; }
-    if (!visitante() && calificar() === null) { msg.textContent = 'La persona debe responder toda la evaluación.'; return; }
-    const firma = UI.firma('fInd'); if (!firma) { msg.textContent = 'Falta la firma de la persona.'; return; }
+    const prob = Valida.revisar(s, [{ el: $('iNom'), etiqueta: 'Nombre', error: Valida.nombre($('iNom').value) }, { el: $('iCed'), etiqueta: 'Cédula', error: Valida.cedula($('iCed').value) },
+      { el: $('iFecha'), etiqueta: 'Fecha', error: Valida.pasada($('iFecha').value) }, { el: $('iDicto'), etiqueta: 'Quién la dictó', error: $('iDicto').value.trim() ? '' : 'falta' }], null);
+    if (!temas.length) prob.push('Temas: marca los temas tratados');
+    const sinResp = visitante() ? [] : PREGUNTAS.map((q, i)=> i).filter((i)=> !s.querySelector('[data-q="' + i + '"] input:checked'));
+    s.querySelectorAll('.preg').forEach((el)=> el.classList.toggle('sin-resp', sinResp.indexOf(+el.dataset.q) !== -1));
+    if (sinResp.length) prob.push('Evaluación: faltan las preguntas ' + sinResp.map((i)=> i + 1).join(', '));
+    const firma = UI.firma('fInd'); if (!firma) prob.push('Firma de la persona: falta');
+    if (prob.length) { msg.innerHTML = '<div class="v-resumen"><b>Para guardar falta:</b><br>• ' + prob.map(esc).join('<br>• ') + '</div>'; return; }
+    msg.textContent = '';
+    if (!visitante() && calificar() === null) return;
     const f = $('iFecha').value, aprobada = visitante() || nota >= APRUEBA;
     const respuestas = visitante() ? [] : PREGUNTAS.map((q, i)=> { const r = s.querySelector('[data-q="' + i + '"] input:checked'); return { pregunta: q[0], respuesta: q[1][Number(r.value)], correcta: Number(r.value) === q[2] }; });
     const doc = { tipoInduccion: $('iTipo').value, fecha: f, nombre: $('iNom').value.trim(), cedula: $('iCed').value.trim(), cargo: $('iCargo').value.trim(), empresa: $('iEmp').value.trim(), dicto: $('iDicto').value.trim(),

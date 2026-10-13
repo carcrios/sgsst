@@ -297,6 +297,22 @@ El inicio quedó en dos partes:
 - La página oculta lo que el rol no ve; lo que el servidor protege de verdad sigue igual: datos de salud solo Administrador y SST, quejas de convivencia cifradas, y solo escriben los roles con permiso (Solo consulta no cambia nada).
 - Los pendientes del inicio solo muestran lo de los módulos del rol; el correo del lunes le llega a cada quien con lo que tiene su nombre (Administrador y SST, todo).
 
+### Novedades de la v107: validaciones, proveedores, encuestas a clientes e informe
+
+**Al actualizar:** cambió el servidor (`15-sgsst.gs` y `00-Portal.gs`). Actualiza el sitio **y** los servidores de todas las empresas (`node herramientas/actualizar-servidores.js clientes.json`, o a mano con «Nueva versión» de la misma implementación).
+
+- **Validación en todos los formularios** (`valida.js`): cédula solo números, NIT con dígito de verificación, correo, teléfono, cantidades ≥ 0 y fechas coherentes. Al guardar dice qué falta y resalta el campo. Toda lista con «Otro» abre un cuadro para escribir.
+- **Proveedores y contratistas** (`proveedores.html`, módulo `proveedores`): matriz de requisitos por categoría con excluyentes ★, evaluación inicial (pesos de bienes y de servicios), reevaluación, homologación (dos CONFIABLE seguidos), cronograma, PDF con firmas y CSV. El catálogo y los pesos están en `proveedores-catalogo.js`: si la empresa usa otro formato, se cambia solo ese archivo. Usa los mismos registros `proveedor` de Documental.
+- **Encuestas a clientes** (Calidad → Satisfacción → «Enviar encuesta a un cliente»): genera un enlace (`encuesta-cliente.html#r=…`) para WhatsApp, correo o QR. El cliente responde **sin usuario**; el servidor solo le muestra esa encuesta y acepta una respuesta por enlace. El resultado entra al indicador de satisfacción y NPS.
+- **Encuesta de peligros para los trabajadores** (`percepcion-peligros.html`, pública): desde Matriz de peligros → Revisiones se saca el enlace o QR por área; el consolidado muestra qué peligros señalan y si ya están en la matriz.
+- **Comité de emergencias** (`comite-emergencias.html`, módulo `comiteemergencias`): igual que COPASST y Convivencia, con reuniones trimestrales.
+- **Informe del SG-SST** (`informe.html`, lo ven SST, Administrador y Solo consulta): gráficas, hallazgos y sugerencias de mejora por mes, trimestre o año, con botón para crear la acción y PDF firmado. La gerencia no ve datos de salud individuales.
+- **Tareas del asesor**: en el panel del asesor, «Asignar tarea» por empresa. Llega como acción (origen «Asesor SST») a los pendientes del responsable y al correo del lunes. La lista de responsables solo sale con servidores v107 o posteriores; con uno anterior se escribe el nombre.
+- **Novedades normativas** (Documental → Matriz legal): el servidor consulta fuentes en línea (RSS) cada 6 horas como máximo y marca si la norma ya está en la matriz. Es una ayuda: cada norma se revisa antes de incluirla.
+- **Ambiental**: categoría de generador de RESPEL con la media móvil de 6 meses (≥1.000 kg/mes grande, 100 a <1.000 mediano, 10 a <100 pequeño) y la fecha del reporte en el RUA según el NIT (verificarla con la autoridad ambiental).
+- **Revisión por la dirección** con los 24 puntos del Dec. 1072, art. 2.2.4.6.31, y rendición de cuentas de responsable del SG-SST, comités, brigada y gerencia.
+- **Formatos nuevos** (códigos en Configurar la empresa): SG-EVAL-PROVEEDOR, SG-EMERGENCIAS-ACTA, SG-LUGARES-QUIMICOS, SG-CONSUMOS.
+
 ## Vender el portal a varias empresas (sitio multiempresa, v99)
 
 En vez de un sitio por empresa, **tú publicas UN sitio con tu marca** y cada empresa entra con su código. Así una actualización del sitio les llega a todas a la vez, y los servidores se actualizan con un solo comando.

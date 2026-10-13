@@ -30,6 +30,7 @@
 <script src="empresa.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
+<script src="valida.js"></script>
 <script src="sgsst-ui.js"></script>
 <script src="cifrado.js"></script>
 <script src="comites.js"></script>
@@ -512,6 +513,16 @@ function rango(v) {
   const fin = new Date(Date.UTC(Number(y), m3, 0)).toISOString().slice(0, 10);
   return { ini: y + '-' + ('0' + m1).slice(-2) + '-01', fin, nombre: k + '.º trimestre de ' + y, tipo: 'TRIMESTRAL' };
 }
+/* Firmas del informe: presidente, secretario y cada integrante (principal y suplente) con espacio para firmar,
+   y el recibido de la alta dirección. Res. 3461 de 2025: el informe lo firma el comité. */
+function firmasComite(ms, pres, sec) {
+  const linea = (n, r, extra) => '<td style="height:62px;vertical-align:bottom;width:50%;"><div style="border-top:1px solid #000;margin-top:34px;padding-top:2px;"><b>' + esc(n || '') + '</b><br>' + esc(r) + (extra ? ' · ' + esc(extra) : '') + '</div></td>';
+  const otros = ms.filter((m) => m !== pres && m !== sec);
+  const celdas = [linea(pres && pres.nombre, 'Presidente del comité'), linea(sec && sec.nombre, 'Secretario del comité')].concat(otros.map((m) => linea(m.nombre, m.rol || 'Integrante', [m.representa ? 'representa al ' + String(m.representa).toLowerCase() : '', m.calidad].filter(Boolean).join(' · '))));
+  let h = '<table>';
+  for (let i = 0; i < celdas.length; i += 2) h += '<tr>' + celdas[i] + (celdas[i + 1] || '<td></td>') + '</tr>';
+  return h + '<tr>' + linea('', 'Recibido por la alta dirección', 'fecha: ____ / ____ / ________') + '<td></td></tr></table>';
+}
 async function informe() {
   const R = rango($('inP').value), res = $('inRes');
   try { localStorage.setItem('ssta-convivencia-informe', JSON.stringify({ act: $('inAct').value, rec: $('inRec').value })); } catch (e) {}
@@ -552,7 +563,7 @@ async function informe() {
   UI.imprimir([UI.cabecera('SG-CONVIVENCIA-INFORME', 'INFORME ' + R.tipo + ' DE GESTIÓN — COMITÉ DE CONVIVENCIA LABORAL', R.nombre + ' (' + UI.corta(R.ini) + ' a ' + UI.corta(R.fin) + ')') +
     UI.seccion('ESTADÍSTICAS (SIN DATOS PERSONALES)', t) + UI.seccion('ACTIVIDADES DE PREVENCIÓN', UI.textoLargo($('inAct').value)) +
     UI.seccion('RECOMENDACIONES A LA ALTA DIRECCIÓN', UI.textoLargo($('inRec').value)) +
-    UI.seccion('FIRMAS', '<table><tr><td style="width:50%;height:60px;vertical-align:bottom;"><b>' + esc(pres ? pres.nombre : '') + '</b><br>Presidente</td><td style="vertical-align:bottom;"><b>' + esc(sec ? sec.nombre : '') + '</b><br>Secretario</td></tr></table>') +
+    UI.seccion('FIRMAS DEL COMITÉ', firmasComite(ms, pres, sec)) +
     '<table style="margin-top:6px;"><tr><td style="font-size:8pt;">Res. 3461 de 2025: informe para la alta dirección. No contiene nombres ni hechos de los casos.</td></tr></table>']);
 }
 
