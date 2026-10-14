@@ -119,14 +119,14 @@ canvas.mini-pad{width:100%;height:170px;border:1.5px dashed #b9b2a2;border-radiu
 <div class="screen active" id="screenLanding">
   <div class="hdr" style="display:block;">
     <a class="back" href="index.html">← Volver al portal</a>
-    <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><div class="eyebrow">Anexo SSTA-F-149</div>
+    <div class="marca-titulo"><span class="marca" role="img" aria-label="Logo de la empresa"></span><div><div class="eyebrow">Anexo SSTA-F-149</div>
     <h1>Personal Autorizado</h1>
     <p>Registro diario de personal en obra</p></div></div>
   </div>
   <div class="acciones-top" style="margin-bottom:14px;"><button type="button" class="btn amber" id="btnNuevaObra">+ Nueva obra</button>
   <button type="button" class="btn ghost" id="btnBaseDatos">👥 Base de datos de personal</button></div>
   <div id="obrasList"></div>
-  <div class="version-portal" id="versionPortal">Portal SSTA · versión v107</div>
+  <div class="version-portal" id="versionPortal">Portal SSTA · versión v108</div>
 </div>
 
 <!-- ═══════ BASE DE DATOS DE PERSONAL ═══════ -->
@@ -984,7 +984,7 @@ function htmlHojaAnexo(reg, obra, primera){
   const anexadoA = permisos.length ? permisos.map(p=> p.code).join(', ') : 'sin permisos ni ATS vinculados';
   let h = '<div class="hp hp-anexo"' + (primera ? '' : ' style="break-before:page;page-break-before:always;"') + '>' +
     '<table class="hp-cab"><colgroup><col style="width:16%"><col><col style="width:26%"></colgroup><tr>' +
-    '<td class="hp-logo"><img src="' + (logoHoja || EMPRESA.logo) + '" alt="INDIMON"></td>' +
+    '<td class="hp-logo"><img src="' + (logoHoja || EMPRESA.logo) + '" alt="Logo"></td>' +
     '<td class="hp-tit">PERSONAL AUTORIZADO — REGISTRO DIARIO<div>Anexo del permiso de trabajo · Anexado a: <b>' + e(anexadoA) + '</b></div></td>' +
     '<td class="hp-meta">Código: <b>' + e(Empresa.codigo('SSTA-F-149')) + '</b><br>Fecha del registro: <b>' + e(fechaHoja(reg.fecha)) + '</b><br>' + e(fechaLarga(reg.fecha)) + '</td>' +
     '</tr></table>';
@@ -1013,7 +1013,7 @@ function htmlHojaAnexo(reg, obra, primera){
     '<tr><td class="l">Cédula</td><td>' + e(ver.cedula || '') + '</td></tr>' +
     '</table></div>';
   h += '<div class="hp-pie">' + (reg.savedAt ? 'Guardado el ' + e(new Date(reg.savedAt).toLocaleString('es-CO')) + ' · ' : '') +
-    'Impreso el ' + e(new Date().toLocaleString('es-CO')) + ' desde el Portal SSTA · INDIMON</div></div>';
+    'Impreso el ' + e(new Date().toLocaleString('es-CO')) + ' desde el ' + e(Empresa.pie()) + '</div></div>';
   return h;
 }
 function esperarImagenes(cont, maxMs){

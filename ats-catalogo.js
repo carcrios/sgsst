@@ -5,11 +5,10 @@
    - Clasificación de peligros: GTC 45 (2012), Anexo A — Tabla de peligros.
      Siete clases: Biológico, Físico, Químico, Psicosocial, Biomecánico,
      Condiciones de seguridad y Fenómenos naturales.
-   - Consecuencias y controles: tomados de los ATS reales de INDIMON
-     (Bodega, Reparación caldera aceite térmico, Montaje tanque 20.000 L,
-     Modificación tubería zona despacho, Fuga campana tanque 400 m³).
-     Se partieron en controles sueltos para poder marcarlos uno por uno,
-     pero la redacción es la que ya usan en obra.
+   - Consecuencias y controles: redacción de obra para tareas típicas de
+     montaje y mantenimiento industrial (bodega, calderas, tanques,
+     tuberías). Se partieron en controles sueltos para poder marcarlos
+     uno por uno.
    - Jerarquía de controles (GTC 45, numeral 2.8 / Decreto 1072 art.
      2.2.4.6.24): E eliminación · S sustitución · I controles de ingeniería ·
      A controles administrativos, señalización, advertencia · P EPP.
@@ -26,12 +25,10 @@
 
 const ATS_FORMATO = {
   titulo: 'ANÁLISIS DE TRABAJO SEGURO',
-  // OJO: en los ATS de referencia aparecen dos códigos para este mismo
-  // formato (SSTA-F-007 y SSTA-F-046). Confirmar cuál es el vigente en el
-  // listado maestro de documentos y dejarlo aquí.
+  // Código, versión y fecha: los de la empresa (empresa.js → formatos).
   codigo: 'SSTA-F-007',
-  version: '4',
-  fecha: '19/10/2016',
+  version: '',
+  fecha: '',
   pagina: 'Página: 1 de 1'
 };
 // Código, versión y fecha propios de la empresa (empresa.js).
@@ -594,7 +591,7 @@ const RESPONSABLES = [
 /* ============================================================
    ENCABEZADO: opciones seleccionables
    ============================================================ */
-const CENTROS_COSTO = (typeof Empresa !== 'undefined' && !Empresa.original) ? (EMPRESA.centrosCosto || []).slice() : ['INDIMON', 'Mayekawa', 'Buen Café', 'Encajes', 'Gaseosas Lux / Postobón', 'Coca-Cola ECLA', 'Quala Tocancipá', 'Gascol Centro'];
+const CENTROS_COSTO = (typeof EMPRESA !== 'undefined' && EMPRESA.centrosCosto) ? EMPRESA.centrosCosto.slice() : [];
 
 const PERMISOS = [
   { id: 'caliente', nombre: 'Caliente', peligros: ['tec_caliente'] },

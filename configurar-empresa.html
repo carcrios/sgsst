@@ -111,7 +111,7 @@ pre{white-space:pre-wrap;word-break:break-all;background:#0f1720;color:#d6e2ee;b
       </div>
     </div>
     <label for="cColor">Color de la marca</label>
-    <div class="color"><input type="color" id="cColor" value="#F2C200"><span class="ayuda" style="margin:0;">Franja superior del inicio y color de la app instalada.</span></div>
+    <div class="color"><input type="color" id="cColor" value="#1f3b57"><span class="ayuda" style="margin:0;">Franja superior del inicio y color de la app instalada.</span></div>
   </div>
 
   <div class="card">
@@ -176,7 +176,7 @@ pre{white-space:pre-wrap;word-break:break-all;background:#0f1720;color:#d6e2ee;b
     ['reportes', '⚠️ Reportes e investigación'], ['habilitacion', '🪪 Personal habilitado'], ['plan', '✅ Plan de acción'], ['inspecciones', '🔍 Inspecciones planeadas'], ['indicadores', '📈 Indicadores'],
     ['copasst', '🤝 COPASST'], ['convivencia', '🕊️ Comité de Convivencia'], ['auditorias', '🧾 Auditorías'],
     ['plananual', '🗓️ Plan anual de trabajo'], ['peligros', '☢️ Matriz de peligros'], ['emergencias', '🚨 Emergencias'], ['salud', '🩺 Salud en el trabajo'], ['documental', '📚 Documental y legal'], ['revision', '🏛️ Revisión por la dirección'], ['contratistas', '🚧 Contratistas'], ['usuarios', '👥 Usuarios y respaldo'], ['dotacion', '🦺 Matriz y entrega de EPP'], ['induccion', '🎓 Inducción y reinducción'], ['programas', '🧗 Programas de alto riesgo'], ['pesv', '🚗 PESV'], ['gerencia', '📊 Tablero de la gerencia'], ['ambiental', '🌱 Gestión ambiental'], ['quimicos', '⚗️ Sustancias químicas'], ['kit', '📄 Kit documental'], ['calidad', '🏅 Gestión de la calidad (ISO 9001)'], ['asesor', '🧑‍💼 Panel del asesor (clientes)'], ['cierre', '📅 Cerrar el mes'], ['evidencias', '🗂️ Carpeta de evidencias'], ['preop', '🔧 Preoperacionales'], ['proveedores', '🤝 Evaluación de proveedores'], ['comiteemergencias', '🚨 Comité de emergencias']];
-  const esFabrica = Empresa.original;   // este sitio todavía tiene la configuración de fábrica (INDIMON)
+  const esFabrica = !!E.sinConfigurar;   // este sitio todavía tiene los datos de ejemplo de fábrica
   const ME = typeof MultiEmpresa !== 'undefined' && MultiEmpresa.activo;
   // En un sitio multiempresa sin empresa elegida, el formulario empieza vacío (empresa nueva).
   const nuevaEnMulti = ME && E.sinEmpresa;
@@ -264,10 +264,10 @@ pre{white-space:pre-wrap;word-break:break-all;background:#0f1720;color:#d6e2ee;b
     // Lo que el formulario no muestra (requisitos de habilitación, etc.) se conserva tal cual.
     // El sitio del proveedor parte de su propia configuración, nunca de la empresa que esté abierta en este equipo.
     const base = tipo === 'proveedor' && ME ? MultiEmpresa.proveedor : E;
-    const otros = {}; Object.keys(base).forEach((k) => { if (['sinEmpresa', 'codigo', 'nombre', 'nombreCorto', 'nit', 'subtitulo', 'logo', 'colorMarca', 'formatos', 'modulos', 'correos', 'contactoEpp', 'centrosCosto', 'servidor', 'apiToken', 'demo'].indexOf(k) === -1) otros[k] = JSON.parse(JSON.stringify(base[k])); });
+    const otros = {}; Object.keys(base).forEach((k) => { if (['sinEmpresa', 'sinConfigurar', 'codigo', 'nombre', 'nombreCorto', 'nit', 'subtitulo', 'logo', 'colorMarca', 'formatos', 'modulos', 'correos', 'contactoEpp', 'centrosCosto', 'servidor', 'apiToken', 'demo'].indexOf(k) === -1) otros[k] = JSON.parse(JSON.stringify(base[k])); });
     return Object.assign(otros, {
       nombre: $('cNombre').value.trim(), nombreCorto: $('cCorto').value.trim().toUpperCase(), nit: $('cNit').value.trim(), subtitulo: $('cSub').value.trim(),
-      logo: logo || 'logo-indimon.png', colorMarca: $('cColor').value, formatos, modulos,
+      logo: logo || '', colorMarca: $('cColor').value, formatos, modulos,
       correos: { aprobacionEpp: $('cCorreoEpp').value.trim(), dominio: $('cDominio').value.trim().replace(/^@/, '') },
       contactoEpp: { nombre: $('cWaNombre').value.trim(), cargo: '', whatsapp: $('cWaNumero').value.trim() },
       centrosCosto: centros, servidor: srv.servidor, apiToken: srv.apiToken, demo: false
@@ -283,7 +283,7 @@ pre{white-space:pre-wrap;word-break:break-all;background:#0f1720;color:#d6e2ee;b
     const p = [], a = [];
     if (!c.nombre) p.push('Falta la razón social.');
     if (!c.nombreCorto) p.push('Falta el nombre corto.');
-    if (/^IND[IÍ]MON$/i.test(c.nombreCorto)) p.push('El nombre corto no puede ser INDIMON (esa es la instalación original).');
+    if (/^TU (EMPRESA|MARCA)$/i.test(c.nombreCorto)) p.push('Cambia el nombre corto: «' + c.nombreCorto + '» es el de ejemplo.');
     if (tipo === 'cliente' && !codigoOk()) p.push('El código de la empresa: minúsculas, números y guiones (2 a 40), sin espacios.');
     if (tipo === 'proveedor' && !$('cProducto').value.trim()) a.push('Sin nombre de producto: se seguirá llamando Portal SSTA.');
     if (tipo === 'proveedor' && !c.servidor) { /* el sitio del proveedor puede no tener servidor propio */ }

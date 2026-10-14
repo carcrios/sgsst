@@ -47,13 +47,13 @@ const Comite = (function () {
   function montar() {
     $('raizComite').innerHTML =
       '<div class="screen active" id="scrInicio"><div class="hdr"><a class="back" href="index.html">← Volver al portal</a>' +
-      '<div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><div class="eyebrow">Gestión SST · Comités</div>' +
+      '<div class="marca-titulo"><span class="marca" role="img" aria-label="Logo de la empresa"></span><div><div class="eyebrow">Gestión SST · Comités</div>' +
       '<h1 id="tituloComite">' + esc(C.nombre) + '</h1><p>' + esc(C.subtitulo) + '</p></div></div></div>' +
       '<div id="avisoSrv"></div><div id="avisoCopia"></div><div id="alertas"></div><div class="kpis" id="kpis"></div>' +
       '<div class="tabs" id="tabs"><button type="button" class="on" data-tab="reuniones">Reuniones</button><button type="button" data-tab="conformacion">Conformación</button>' +
       '<button type="button" data-tab="compromisos">Compromisos <span class="n" id="nComp">0</span></button>' +
       (C.tabsExtra || []).map((t) => '<button type="button" data-tab="' + t.id + '">' + esc(t.nombre) + '</button>').join('') + '</div>' +
-      '<div id="panel"><div class="empty">Cargando…</div></div><div class="version-portal">Portal SSTA · versión v107</div></div>' +
+      '<div id="panel"><div class="empty">Cargando…</div></div><div class="version-portal">Portal SSTA · versión v108</div></div>' +
       '<div class="screen" id="scrActa"></div><div class="screen" id="scrConf"></div>' + (C.pantallasExtra || '');
     $('tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; document.querySelectorAll('#tabs button').forEach((x) => x.classList.toggle('on', x === b)); pintar(); });
     document.addEventListener('click', (e) => { const v = e.target.closest('[data-volver]'); if (v) { e.preventDefault(); show('scrInicio'); pintar(); } });

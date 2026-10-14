@@ -301,7 +301,7 @@
 <body>
 
 <div class="hdr">
-  <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><h1 id="tituloFormato">🦺 Inspección de EPP<span class="cod">SSTA-F-006 · versión 6</span></h1></div>
+  <div class="marca-titulo"><span class="marca" role="img" aria-label="Logo de la empresa"></span><h1 id="tituloFormato">🦺 Inspección de EPP<span class="cod">SSTA-F-006 · versión 6</span></h1></div>
   <a href="index.html">← Volver al portal</a>
 </div>
 
@@ -330,7 +330,7 @@
       </div>
       <div class="field">
         <label for="inspCorreo">Correo del inspector <span style="text-transform:none;font-weight:400;">(opcional — recibe copia de las solicitudes)</span></label>
-        <input type="email" id="inspCorreo" autocomplete="off" placeholder="nombre@indimon.com">
+        <input type="email" id="inspCorreo" autocomplete="off" placeholder="nombre@empresa.com">
       </div>
       <div class="sig-block">
         <h5>Firma del inspector</h5>
@@ -491,8 +491,8 @@ const WA_NUMERO = WA_TEL_LEGIBLE.replace(/\D/g, '');   // formato internacional,
 const WA_RESPONSABLE = CONTACTO_EPP.nombre || 'el responsable de SST';
 const WA_CARGO = CONTACTO_EPP.cargo || '';
 const WA_CON_TEL = WA_RESPONSABLE + (WA_TEL_LEGIBLE ? ' (' + WA_TEL_LEGIBLE + ')' : '');
-const CORREO_APROBACION = (EMPRESA.correos && EMPRESA.correos.aprobacionEpp) || 'analista.ssta@indimon.com.co';
-if (!Empresa.original) { const ic = document.getElementById('inspCorreo'); if (ic) ic.placeholder = 'nombre@' + ((EMPRESA.correos && EMPRESA.correos.dominio) || 'empresa.com'); }
+const CORREO_APROBACION = (EMPRESA.correos && EMPRESA.correos.aprobacionEpp) || 'el responsable de SST';
+{ const ic = document.getElementById('inspCorreo'); if (ic) ic.placeholder = 'nombre@' + ((EMPRESA.correos && EMPRESA.correos.dominio) || 'empresa.com'); }
 
 /** Arma el enlace de WhatsApp con el mensaje ya escrito, para que el inspector
  *  solo tenga que adjuntar las fotos y darle enviar. */

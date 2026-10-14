@@ -17,16 +17,16 @@ const EMPRESA = {
   colorMarca: '#e0912a',
 
   formatos: {
-    'SSTA-F-005': { codigo: 'MA-SST-F-12', titulo: 'Control de asistencia a capacitación, eventos y reuniones', version: '2', fecha: '15/01/2025', actualizacion: '10-06-2026' },
-    'SSTA-F-006': { codigo: 'MA-SST-F-20', titulo: 'Inspección de EPP', version: '6', fecha: '', actualizacion: '' },
-    'SSTA-F-007': { codigo: 'MA-SST-F-03', titulo: 'Análisis de Trabajo Seguro (ATS)', version: '4', fecha: '19/10/2016', actualizacion: '' },
-    'SSTA-F-116': { codigo: 'MA-SST-F-31', titulo: 'Permiso de trabajo en alturas', version: '3', fecha: '', actualizacion: '' },
-    'SSTA-F-117': { codigo: 'MA-SST-F-32', titulo: 'Permiso de espacios confinados', version: '2', fecha: '24/01/2022', actualizacion: '25/01/2023' },
-    'SSTA-F-118': { codigo: 'MA-SST-F-33', titulo: 'Permiso de izajes de cargas', version: '2', fecha: '15/05/2017', actualizacion: '25/01/2023' },
-    'SSTA-F-119': { codigo: 'MA-SST-F-30', titulo: 'Permiso de trabajo en caliente', version: '2', fecha: '15/05/2017', actualizacion: '25/01/2023' },
-    'SSTA-F-147': { codigo: 'MA-SST-F-21', titulo: 'Inspección de EPP de brigadistas', version: '1', fecha: '', actualizacion: '' },
-    'SSTA-F-149': { codigo: 'MA-SST-F-35', titulo: 'Anexo de personal autorizado', version: '', fecha: '', actualizacion: '' },
-    'SSTA-F-180': { codigo: 'MA-SST-F-34', titulo: 'Permiso de trabajo eléctrico', version: '1', fecha: '10/04/2025', actualizacion: '' },
+    'SSTA-F-005': { codigo: 'MA-SST-F-12', titulo: 'Control de asistencia a capacitación, eventos y reuniones', version: '1', fecha: '15/01/2025', actualizacion: '' },
+    'SSTA-F-006': { codigo: 'MA-SST-F-20', titulo: 'Inspección de EPP', version: '1', fecha: '15/01/2025', actualizacion: '' },
+    'SSTA-F-007': { codigo: 'MA-SST-F-03', titulo: 'Análisis de Trabajo Seguro (ATS)', version: '1', fecha: '15/01/2025', actualizacion: '' },
+    'SSTA-F-116': { codigo: 'MA-SST-F-31', titulo: 'Permiso de trabajo en alturas', version: '1', fecha: '15/01/2025', actualizacion: '' },
+    'SSTA-F-117': { codigo: 'MA-SST-F-32', titulo: 'Permiso de espacios confinados', version: '1', fecha: '15/01/2025', actualizacion: '' },
+    'SSTA-F-118': { codigo: 'MA-SST-F-33', titulo: 'Permiso de izajes de cargas', version: '1', fecha: '15/01/2025', actualizacion: '' },
+    'SSTA-F-119': { codigo: 'MA-SST-F-30', titulo: 'Permiso de trabajo en caliente', version: '1', fecha: '15/01/2025', actualizacion: '' },
+    'SSTA-F-147': { codigo: 'MA-SST-F-21', titulo: 'Inspección de EPP de brigadistas', version: '1', fecha: '15/01/2025', actualizacion: '' },
+    'SSTA-F-149': { codigo: 'MA-SST-F-35', titulo: 'Anexo de personal autorizado', version: '1', fecha: '15/01/2025', actualizacion: '' },
+    'SSTA-F-180': { codigo: 'MA-SST-F-34', titulo: 'Permiso de trabajo eléctrico', version: '1', fecha: '15/01/2025', actualizacion: '' },
     'SG-REPORTE': { codigo: 'MA-SST-F-40', titulo: 'Reporte e investigación de actos, condiciones, incidentes y accidentes', version: '1', fecha: '15/01/2025', actualizacion: '' },
     'SG-PLAN': { codigo: 'MA-SST-F-41', titulo: 'Plan de acción del SG-SST', version: '1', fecha: '15/01/2025', actualizacion: '' },
     'SG-HABILITACION': { codigo: 'MA-SST-F-42', titulo: 'Estado de habilitación del personal', version: '1', fecha: '15/01/2025', actualizacion: '' },
@@ -111,7 +111,7 @@ const EMPRESA = {
   },
   // Quién recibe por WhatsApp la foto de un EPP en mal estado (para aprobar el cambio).
   contactoEpp: { nombre: 'Sandra Milena Torres', cargo: 'Coordinadora SST', whatsapp: '' },
-  // Clientes / centros de costo para el ATS. null = la lista de fábrica (la de INDIMON).
+  // Clientes / centros de costo para el ATS y los preoperacionales.
   centrosCosto: ['Planta propia', 'Cliente Alimentos del Norte', 'Cliente Bebidas La Sabana', 'Cliente Química Andina'],
 
   servidor: 'https://demo.portal-ssta.invalid/exec',
@@ -147,7 +147,7 @@ const MultiEmpresa = (function () {
   if (cargada) {
     // Lo de la empresa reemplaza lo del sitio; la marca (producto) y el modo siguen siendo del proveedor.
     Object.keys(datos.empresa).forEach((k) => { if (k !== 'multiempresa' && k !== 'producto' && k !== 'demo') E[k] = datos.empresa[k]; });
-    E.codigo = cod; delete E.sinEmpresa;
+    E.codigo = cod; delete E.sinEmpresa; delete E.sinConfigurar;
   } else E.sinEmpresa = true;
   const url = (c) => 'empresas/' + encodeURIComponent(c) + '.json';
   async function traer(c) {
@@ -163,7 +163,7 @@ const MultiEmpresa = (function () {
     return { codigo: c, empresa: emp, generado: j.generado || '' };
   }
   /** Lo que el portal guarda en el equipo (sesión, borradores de ATS y reportes, plantillas…), de la empresa anterior. */
-  function borrarLocal() { try { Object.keys(localStorage).filter((k) => /^(ssta-|ats-|indimon-)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch (e) {} }
+  function borrarLocal() { try { Object.keys(localStorage).filter((k) => /^(ssta-|ats-)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch (e) {} }
   /** ¿Hay registros sin enviar en este celular? (no se cambia de empresa con cosas en la cola) */
   function pendientes() {
     return new Promise((ok) => {
@@ -206,11 +206,8 @@ const MultiEmpresa = (function () {
 const Empresa = (function () {
   const E = EMPRESA;
   const PRODUCTO = String(E.producto || 'Portal SSTA');
-  // La instalación original (INDIMON) no se toca: las pantallas ya dicen
-  // INDIMON y los formatos de fábrica son los suyos.
-  const original = String(E.nombreCorto).toUpperCase() === 'INDIMON' && !E.demo;
-  // Otra empresa sin logo propio: nunca el de INDIMON; un distintivo con sus iniciales.
-  if (!original && (!E.logo || /logo-indimon\.png$/.test(E.logo))) {
+  // Empresa sin logo propio: un distintivo con sus iniciales y su color.
+  if (!E.logo) {
     const ini = String(E.nombreCorto || E.nombre || 'SST').replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9 ]/g, '').split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 3).toUpperCase() || 'SST';
     const color = E.colorMarca || '#1f3b57';
     E.logo = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="140" viewBox="0 0 240 140"><rect width="240" height="140" rx="22" fill="' + color + '"/><text x="120" y="92" font-family="Arial,Helvetica,sans-serif" font-size="64" font-weight="700" text-anchor="middle" fill="#fff">' + ini + '</text></svg>');
@@ -232,7 +229,7 @@ const Empresa = (function () {
   function codigo(id) { return formato(id).codigo || id; }
   function moduloActivo(k) { return !E.modulos || E.modulos[k] !== false; }
   /* ── Quién ve qué (v106) ──
-     PUBLICO: lo de campo, como estaba el portal de INDIMON (cualquiera, sin usuario).
+     PUBLICO: lo de campo (cualquiera, sin usuario).
      Lo demás es el «Sistema de gestión»: con usuarios, cada rol ve lo suyo; Administrador y SST, todo. */
   const PUBLICO = ['caliente', 'alturas', 'confinados', 'izajes', 'electrico', 'ats', 'asistencia', 'personal', 'epp', 'brigadistas', 'tablero', 'reportes', 'preop'];
   const ACCESO_FABRICA = {
@@ -260,15 +257,10 @@ const Empresa = (function () {
     return MODULO_DE[archivo] || null;
   }
 
-  /* ── Reemplazo de textos (solo cuando NO es la instalación original) ── */
+  /* ── Reemplazo de textos: nombre del producto y códigos propios de los formatos ── */
   const reemplazos = [];
-  if (!original) {
-    const nom = String(E.nombre || E.nombreCorto || 'Empresa');
-    const corto = String(E.nombreCorto || nom);
-    reemplazos.push([/INDIMON S\.A\.S\.?/g, nom], [/IND[IÍ]MON/gi, corto]);
-    if (PRODUCTO !== 'Portal SSTA') reemplazos.push([/Portal SSTA/g, PRODUCTO]);
-    FABRICA.forEach((id) => { const c = codigo(id); if (c !== id) reemplazos.push([new RegExp(id.replace(/-/g, '\\-') + '(?!\\d)', 'g'), c]); });
-  }
+  if (PRODUCTO !== 'Portal SSTA') reemplazos.push([/Portal SSTA/g, PRODUCTO]);
+  FABRICA.forEach((id) => { const c = codigo(id); if (c !== id) reemplazos.push([new RegExp(id.replace(/-/g, '\\-') + '(?!\\d)', 'g'), c]); });
   function cambiarTexto(s) {
     let r = s;
     for (let i = 0; i < reemplazos.length; i++) r = r.replace(reemplazos[i][0], reemplazos[i][1]);
@@ -282,13 +274,13 @@ const Empresa = (function () {
     if (!m || FABRICA.indexOf(m[0]) === -1) return;
     const f = formato(m[0]);
     el.dataset.empresaMeta = '1';
-    const largo = /Versión|Fecha/.test(el.textContent);
+    const largo = el.dataset.meta === 'largo' || /Versión|Fecha/.test(el.textContent);
     el.innerHTML = 'Código: <b>' + esc(f.codigo) + '</b>' + (f.version ? (largo ? ' · Versión: <b>' + esc(f.version) + '</b>' : ' · V' + esc(f.version)) : '') +
       (largo && (f.fecha || f.actualizacion) ? '<br>' + [f.fecha ? 'Fecha doc: ' + esc(f.fecha) : '', f.actualizacion ? 'Act.: ' + esc(f.actualizacion) : ''].filter(Boolean).join(' · ') : '');
   }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
   function aplicar(raiz) {
-    if (original || !raiz) return;
+    if (!raiz) return;
     if (raiz.nodeType === 1) {
       raiz.querySelectorAll && raiz.querySelectorAll('.hdr .meta').forEach(metaFormato);
       if (raiz.matches && raiz.matches('.hdr .meta')) metaFormato(raiz);
@@ -308,7 +300,7 @@ const Empresa = (function () {
           const v = n.getAttribute(ATRIBUTOS[i]);
           if (v) { const t = cambiarTexto(v); if (t !== v) n.setAttribute(ATRIBUTOS[i], t); }
         }
-        if (n.nodeName === 'IMG') { const s = n.getAttribute('src') || ''; if (/logo-indimon\.png$/.test(s)) n.setAttribute('src', E.logo); }
+        if (n.nodeName === 'IMG') { const s = n.getAttribute('src') || ''; if (/logo-empresa\.svg$/.test(s)) n.setAttribute('src', E.logo); }
       }
       if (raiz.nodeType === 3) break;
       n = w.nextNode();
@@ -320,8 +312,7 @@ const Empresa = (function () {
     if (!document.querySelector('.accordion')) return;
     document.querySelectorAll('a.card[href]').forEach((a) => {
       const m = moduloDeHref(a.getAttribute('href'));
-      // Los formularios de Google del inicio son de INDIMON: en otra empresa no salen.
-      const fuera = (m === 'externo' && !original) || (m && m !== 'externo' && !moduloActivo(m));
+      const fuera = m && m !== 'externo' && !moduloActivo(m);
       // Con usuario: lo que su rol no ve tampoco sale en el inicio.
       const rol = rolActual();
       if (fuera || (rol && !accesoRol(m, rol))) a.classList.add('oculto-empresa');
@@ -340,18 +331,16 @@ const Empresa = (function () {
     const st = document.createElement('style');
     st.id = 'estiloEmpresa';
     let css = '.oculto-empresa{display:none !important;}';
-    if (!original) {
-      const url = 'url("' + String(E.logo).replace(/"/g, '%22') + '")';
-      css += '.marca{background-image:' + url + ' !important;}body .hdr-logo{background-image:' + url + ' !important;}';
-      if (E.colorMarca) css += ':root{--brand-index:' + E.colorMarca + ';}';
-    }
+    const url = 'url("' + String(E.logo).replace(/"/g, '%22') + '")';
+    css += '.marca{background-image:' + url + ' !important;}body .hdr-logo{background-image:' + url + ' !important;}';
+    if (E.colorMarca) css += ':root{--brand-index:' + E.colorMarca + ';}';
     st.textContent = css;
     (document.head || document.documentElement).appendChild(st);
   }
 
   function iniciar() {
     estilos();
-    if (!original) {
+    if (reemplazos.length) {
       document.title = cambiarTexto(document.title);
       aplicar(document.body);
       // Lo que se pinta después (listas, modales, la hoja del PDF) también.
@@ -362,16 +351,19 @@ const Empresa = (function () {
     }
     filtrarInicio();
     const cab = document.querySelector('[data-empresa="cabecera"]');
-    if (cab && !original) cab.textContent = (E.nombre || E.nombreCorto) + (E.nit ? ' · NIT ' + E.nit : '') + (E.subtitulo ? ' — ' + E.subtitulo : '');
+    if (cab) cab.textContent = (E.nombre || E.nombreCorto) + (E.nit ? ' · NIT ' + E.nit : '') + (E.subtitulo ? ' — ' + E.subtitulo : '');
+    document.querySelectorAll('[data-empresa="nombre"]').forEach((el) => { el.textContent = E.nombre || E.nombreCorto || ''; });
+    document.querySelectorAll('[data-empresa="marca"]').forEach((el) => { el.textContent = (E.nombreCorto || E.nombre || '') + ' · ' + PRODUCTO; });
+    document.querySelectorAll('.marca[role="img"], .hdr-logo[role="img"]').forEach((el) => el.setAttribute('aria-label', 'Logo de ' + (E.nombreCorto || E.nombre || 'la empresa')));
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
   else if (document.body) iniciar();
 
   return {
-    original, formato, codigo, moduloActivo, aplicar, moduloDeHref, esPublico, accesoRol, rolActual, tablaAcceso,
+    formato, codigo, moduloActivo, aplicar, moduloDeHref, esPublico, accesoRol, rolActual, tablaAcceso,
     logo: () => E.logo,
     producto: PRODUCTO,
-    pie: () => PRODUCTO + ' · ' + (original ? 'INDIMON' : (E.nombreCorto || E.nombre))
+    pie: () => PRODUCTO + ' · ' + (E.nombreCorto || E.nombre)
   };
 })();
 

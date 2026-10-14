@@ -1,5 +1,5 @@
 /* ============================================================
-   sw.js — Service Worker del Portal SSTA (INDIMON) — v2
+   sw.js — Service Worker del Portal SSTA — v2
    Cambios sobre v1:
    - Página offline.html personalizada (en vez de pantalla en blanco
      del navegador cuando no hay caché de la página pedida).
@@ -17,7 +17,7 @@
      la versión más nueva del formulario cuando hay señal).
    ============================================================ */
 
-const CACHE_NAME = 'ssta-portal-v107';
+const CACHE_NAME = 'ssta-portal-v108';
 
 const PAGES = [
   './',
@@ -110,7 +110,7 @@ const STATIC_ASSETS = [
   './permiso-core.js',
   './qr.js',
   './ats-catalogo.js',
-  './logo-indimon.png',
+  './logo-empresa.svg',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',

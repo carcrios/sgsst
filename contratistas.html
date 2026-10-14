@@ -41,7 +41,7 @@
 <div class="screen active" id="scrLista">
   <div class="hdr">
     <a class="back" href="index.html">← Volver al portal</a>
-    <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><div class="eyebrow">Gestión SST</div>
+    <div class="marca-titulo"><span class="marca" role="img" aria-label="Logo de la empresa"></span><div><div class="eyebrow">Gestión SST</div>
     <h1>Contratistas</h1>
     <p>Documentos de cada empresa contratista y control de ingreso a obra (Dec. 1072, art. 2.2.4.6.28)</p></div></div>
   </div>
@@ -56,7 +56,7 @@
     <button type="button" data-tab="ingresos">Ingresos a obra <span class="n" id="nIng">0</span></button>
   </div>
   <div id="panel"><div class="empty">Cargando…</div></div>
-  <div class="version-portal">Portal SSTA · versión v107</div>
+  <div class="version-portal">Portal SSTA · versión v108</div>
 </div>
 
 <div class="screen" id="scrCtr">
@@ -366,7 +366,7 @@ function nuevoIngreso(ctrId){
   $('iCuerpo').innerHTML = '<div class="card"><h2>Trabajo</h2>' +
     '<div class="grid2"><div class="field"><label>Fecha</label><input type="date" id="iFecha" value="' + esc(ing.fecha) + '"></div>' +
     '<div class="field"><label>Contratista</label><select id="iCtr"><option value="">—</option>' + ctrs.map((x)=> '<option value="' + esc(x.id) + '"' + (x.id === ctrId ? ' selected' : '') + '>' + esc(x.titulo) + '</option>').join('') + '</select></div></div>' +
-    '<div class="field"><label>Sitio / cliente</label><input type="text" id="iSitio" placeholder="Ej: Planta Bavaria Tocancipá · PTAR"></div>' +
+    '<div class="field"><label>Sitio / cliente</label><input type="text" id="iSitio" placeholder="Ej: Planta del cliente · PTAR"></div>' +
     '<div class="field"><label>Trabajo a realizar</label><textarea id="iTrabajo" placeholder="Qué van a hacer"></textarea></div>' +
     '<div class="field"><label>Tareas de alto riesgo</label><div class="chips" id="iTareas">' + TAREAS.map((t)=> '<button type="button" data-v="' + t[0] + '">' + esc(t[1]) + '</button>').join('') + '</div><div class="ayuda">Exigen además el curso o la certificación de cada persona.</div></div></div>' +
     '<div class="card"><h2>Documentos de la empresa</h2><div id="iDocs"></div></div>' +

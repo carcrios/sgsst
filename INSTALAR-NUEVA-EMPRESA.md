@@ -1,6 +1,6 @@
 # Instalar el Portal SSTA en una empresa nueva (≈ 30 minutos)
 
-El portal de INDIMON sigue igual. Para otra empresa se usan **los mismos archivos**: solo cambian `empresa.js` (los datos de la empresa) y el servidor, que es **un solo Apps Script** en la cuenta de Google de esa empresa.
+Todas las empresas usan **los mismos archivos**: solo cambian `empresa.js` (los datos de la empresa) y el servidor, que es **un solo Apps Script** en la cuenta de Google de esa empresa.
 
 **Dónde quedan los datos:** en el Google Drive de la empresa, en la carpeta «Portal SSTA - <empresa>», con un libro de Google Sheets por módulo. Nadie más los ve, ni siquiera quien instala, salvo que la empresa comparta la carpeta.
 
@@ -27,7 +27,7 @@ El portal de INDIMON sigue igual. Para otra empresa se usan **los mismos archivo
 4. En `01-Empresa` (el único que se edita; las actualizaciones nunca lo reemplazan), cambia las tres líneas:
    ```js
    const EMPRESA_NOMBRE = 'Montajes del Sur S.A.S.';
-   const CORREOS_SSTA = ['sst@montajesdelsur.com', 'gerencia@montajesdelsur.com'];
+   const CORREOS_SSTA = ['sst@empresa.com', 'gerencia@empresa.com'];
    const CONTACTO_EPP = { nombre: 'Laura Gómez', whatsapp: '+57 300 123 4567' };
    ```
    (Si después cambian, edítalos aquí y haz *Gestionar implementaciones → Nueva versión*.)
@@ -270,17 +270,17 @@ Los preoperacionales que la empresa tenía en Google Forms se montan **tal cual*
 
 1. **Exportar** (en la cuenta de Google dueña de los formularios): https://script.google.com → Nuevo proyecto → pega `herramientas/exportar-formularios.gs` → ejecuta `exportarFormularios`. Deja `formularios-portal.json` en el Drive.
 2. **Importar** (en tu computador, con el repositorio):
-   - INDIMON: `node herramientas/importar-formularios.js formularios-portal.json` (usa los 22 enlaces que tenía el inicio).
-   - Otra empresa: `node herramientas/importar-formularios.js formularios-portal.json --todos` (monta todos sus formularios; el grupo sale de «Grupo: …» en la descripción del formulario).
+   - `node herramientas/importar-formularios.js formularios-portal.json` monta todos los formularios del archivo; el grupo sale de «Grupo: …» en la descripción del formulario.
+   - Para montar solo algunos: `node herramientas/importar-formularios.js formularios-portal.json enlaces.json` (lista de enlaces con su grupo).
    - Se genera `preop-formularios.js`. Súbelo al sitio y vuelve a generar el inicio.
-3. **Cambios a propósito:** la lista desplegable «NOMBRE - CÉDULA» no se copia al código (el sitio es público): la persona se elige del Personal habilitado. En otra empresa, los centros de trabajo salen de `empresa.js` y no se muestran los códigos de INDIMON.
+3. **Cambios a propósito:** la lista desplegable «NOMBRE - CÉDULA» no se copia al código (el sitio es público): la persona se elige del Personal habilitado. Los centros de trabajo salen de `empresa.js` (centros de costo), no de la lista del formulario.
 - Quien usa el equipo puede llenarlo sin usuario (como en Google), pero no cambiarlo después. El de **condiciones de salud** queda aparte (`preopsalud`) y solo lo ven Administrador y SST.
 
 ### Campo a la vista, «Sistema de gestión» por rol (v106)
 
 El inicio quedó en dos partes:
 
-- **En cada jornada** (y la biblioteca): permisos de trabajo, ATS, charlas, preoperacionales, inspección de EPP, personal habilitado, tablero de permisos y «Reportar un evento». Lo abre **cualquiera, sin usuario**, como el portal de INDIMON.
+- **En cada jornada**: permisos de trabajo, ATS, charlas, preoperacionales, inspección de EPP, personal habilitado, tablero de permisos y «Reportar un evento». Lo abre **cualquiera, sin usuario**.
 - **Sistema de gestión**: cronograma del mes, pendientes y los pasos 1 a 5 (planear, ejecutar, comités, cerrar el mes, mejorar, administrar). Con usuarios activos pide **entrar**, y cada rol ve solo sus módulos. Si alguien abre la página de un módulo directo (enlace, favorito), la página misma pide entrar o dice «Tu usuario no tiene acceso aquí».
 
 | Rol | Ve en el sistema de gestión (de fábrica) |
@@ -296,6 +296,13 @@ El inicio quedó en dos partes:
 - El bloqueo por rol funciona cuando la empresa **activa los usuarios** (Usuarios y respaldo). Sin usuarios, el sistema de gestión se abre con «Abrir el sistema de gestión» y avisa que cualquiera con el enlace puede verlo.
 - La página oculta lo que el rol no ve; lo que el servidor protege de verdad sigue igual: datos de salud solo Administrador y SST, quejas de convivencia cifradas, y solo escriben los roles con permiso (Solo consulta no cambia nada).
 - Los pendientes del inicio solo muestran lo de los módulos del rol; el correo del lunes le llega a cada quien con lo que tiene su nombre (Administrador y SST, todo).
+
+### v108: producto neutro, sin datos de ninguna empresa
+
+- El sitio de fábrica trae datos de ejemplo («Tu empresa», sin logo, sin correos ni teléfonos) y `sinConfigurar: true` hasta que el configurador genera el `empresa.js` o el `empresas/<código>.json` de la empresa.
+- `config.js` y `backends/` traen el marcador `PON-AQUI-EL-TOKEN` y ninguna URL de servidor: cada empresa usa su servidor único, con su propio token.
+- El inicio ya no tiene enlaces a formularios ni carpetas externas; los preoperacionales se montan en el portal con `herramientas/importar-formularios.js`.
+- Íconos de la app y logo de reserva neutros. Una prueba automática falla si en el código aparece un correo, celular, token, enlace o nombre de una empresa real.
 
 ### Novedades de la v107: validaciones, proveedores, encuestas a clientes e informe
 
@@ -382,7 +389,7 @@ Las fechas se corren solas para verse siempre recientes. El botón **🧪 DEMO**
 **Publicarla:**
 
 1. `node herramientas/armar-demo.js` → sale la carpeta `sitio-demo/`.
-2. Súbela a un repositorio de GitHub Pages en **una cuenta distinta** a la de INDIMON y a la de los clientes (por ejemplo, la tuya personal).
+2. Súbela a un repositorio de GitHub Pages en **una cuenta distinta** a la de los clientes (por ejemplo, la tuya o la de tu marca).
 
 **Regenerar los datos de ejemplo** (si cambian los formatos): sirve `sitio-demo/` en un puerto y ejecuta `node herramientas/sembrar-demo.js http://localhost:8766` (necesita Playwright).
 

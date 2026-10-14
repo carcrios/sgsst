@@ -318,7 +318,7 @@
 <!-- MENÚ INICIAL: como en los permisos — abrir, cerrar o agregar personal. -->
 <div id="menuAts">
   <div class="hdr">
-    <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><h1>Análisis de Trabajo Seguro</h1><span class="cod" id="codFormatoMenu"></span></div></div>
+    <div class="marca-titulo"><span class="marca" role="img" aria-label="Logo de la empresa"></span><div><h1>Análisis de Trabajo Seguro</h1><span class="cod" id="codFormatoMenu"></span></div></div>
     <a href="index.html">← Volver al portal</a>
   </div>
   <div class="menu-in">
@@ -359,7 +359,7 @@
 
 <div id="atsApp">
   <div class="hdr">
-    <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><h1>Análisis de Trabajo Seguro</h1><span class="cod" id="codFormato"></span></div></div>
+    <div class="marca-titulo"><span class="marca" role="img" aria-label="Logo de la empresa"></span><div><h1>Análisis de Trabajo Seguro</h1><span class="cod" id="codFormato"></span></div></div>
     <button type="button" class="menu" id="btnIrMenu">☰ Menú</button>
   </div>
   <div class="wrap">
@@ -414,7 +414,7 @@
           <div class="field"><label>Fecha</label><div class="rango"><input type="date" id="fDesde"><span>al</span><input type="date" id="fHasta"></div></div>
           <div class="field"><label>Horario de trabajo</label><div class="rango"><input type="time" id="hDesde"><span>hasta</span><input type="time" id="hHasta"></div></div>
         </div>
-        <div class="field"><label>Área</label><input type="text" id="fArea" placeholder="Ej: PTAI, Calderas, Bodega INDIMON - Producción"></div>
+        <div class="field"><label>Área</label><input type="text" id="fArea" placeholder="Ej: PTAI, calderas, bodega de producción"></div>
         <div class="field"><label>Trabajo a realizar</label><textarea id="fTrabajo" placeholder="Ej: Modificación de tubería en acero inoxidable en la zona de despacho"></textarea></div>
       </div>
     </div>
@@ -1667,7 +1667,7 @@ function armarHoja() {
   const F = ats.firmas;
   $('hoja').innerHTML =
     '<table class="cod"><colgroup><col style="width:18%"><col style="width:' + (qr ? 41 : 57) + '%"><col style="width:25%">' + (qr ? '<col style="width:16%">' : '') + '</colgroup>' +
-    '<tr><td rowspan="4" class="logo c"><img src="' + esc(EMPRESA.logo) + '" alt="INDIMON"></td><td rowspan="4" class="titulo">' + esc(ATS_FORMATO.titulo) +
+    '<tr><td rowspan="4" class="logo c"><img src="' + esc(EMPRESA.logo) + '" alt="Logo"></td><td rowspan="4" class="titulo">' + esc(ATS_FORMATO.titulo) +
     (ats.code ? '<div style="font-size:9px;font-weight:400;margin-top:4px;">Registro ' + esc(ats.code) + ' · versión ' + (ats.version || 1) + (ats.estado === 'CERRADO' ? ' · CERRADO' : '') + (ats.sucio && ats.estado !== 'CERRADO' ? ' (con cambios sin subir)' : '') + '</div>' : '') + '</td><td>' + esc(ATS_FORMATO.pagina) + '</td>' +
     (qr ? '<td rowspan="4" class="qr-hoja c"><img src="' + qr + '" alt="QR del ATS"><div>' + (ats.estado === 'CERRADO' ? 'Escanea para ver este ATS' : 'Escanea para ver este ATS o agregar personal') + '</div></td>' : '') + '</tr>' +
     '<tr><td>Versión: ' + esc(ATS_FORMATO.version) + '</td></tr><tr><td>Código: ' + esc(ATS_FORMATO.codigo) + '</td></tr><tr><td>Fecha: ' + esc(ATS_FORMATO.fecha) + '</td></tr></table>' +
@@ -2623,7 +2623,7 @@ $('btnPlantillas').addEventListener('click', () => {
     (urlAts() ? '<h3>ATS guardados en el servidor</h3><div id="srvLista"><p class="ayuda">Cargando…</p></div>' : '') +
     '<h3' + (urlAts() ? ' style="margin-top:18px;"' : '') + '>Plantillas de ATS</h3><p class="ayuda">Guarda un ATS que se repite (por ejemplo, la bodega semanal) y cárgalo la próxima vez: trae el trabajo, las tareas, el EPP y las herramientas, pero sin fechas, participantes ni firmas. Se guardan en este dispositivo.</p>' +
     '<div id="plLista">' + (l.length ? l.map((p, i) => '<div class="pl-item"><span><b>' + esc(p.nombre) + '</b><small>' + p.data.tareas.length + ' tareas · ' + esc(p.fecha) + '</small></span><span><button type="button" class="btn-mini" data-cargar="' + i + '">Usar</button> <button type="button" class="btn-mini" style="border-color:#e3b3ad;color:#a02d20;" data-borrar="' + i + '">✕</button></span></div>').join('') : '<p class="ayuda">Todavía no hay plantillas.</p>') + '</div>' +
-    '<div class="field" style="margin-top:14px;"><label>Guardar el ATS actual como plantilla</label><input type="text" class="inp" id="plNombre" placeholder="Nombre: ej. Bodega INDIMON semanal"></div>' +
+    '<div class="field" style="margin-top:14px;"><label>Guardar el ATS actual como plantilla</label><input type="text" class="inp" id="plNombre" placeholder="Nombre: ej. Bodega semanal"></div>' +
     '<div class="acciones-tareas"><button type="button" class="btn" id="plGuardar">Guardar plantilla</button><button type="button" class="btn sec" data-cerrar>Cerrar</button><button type="button" class="btn peligro" id="plNuevo">Empezar ATS nuevo</button></div>');
   if ($('cpActual')) $('cpActual').addEventListener('click', () => preguntarCopia(ats));
   $('plNombre').value = (ats.cab.trabajo || '').slice(0, 60);

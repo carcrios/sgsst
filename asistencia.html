@@ -121,14 +121,14 @@ canvas.mini-pad{width:100%;height:150px;border:1.5px dashed #b9b2a2;border-radiu
 <div class="screen active" id="screenInicio">
   <div class="hdr">
     <a class="back" href="index.html">← Volver al portal</a>
-    <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><div class="eyebrow">SSTA-F-005</div>
+    <div class="marca-titulo"><span class="marca" role="img" aria-label="Logo de la empresa"></span><div><div class="eyebrow">SSTA-F-005</div>
     <h1>Asistencia a charlas</h1>
     <p>Capacitación, eventos y reuniones</p></div></div>
   </div>
   <div id="avisoServidor"></div>
   <div class="card">
     <h2>✍️ Registrar una charla</h2>
-    <div class="field"><label>Lugar de trabajo</label><input type="text" id="inLugar" autocomplete="off" placeholder="Ej. Planta Bavaria Tocancipá"></div>
+    <div class="field"><label>Lugar de trabajo</label><input type="text" id="inLugar" autocomplete="off" placeholder="Ej. Planta principal · bodega 2"></div>
     <div class="field"><label>Fecha de la charla</label><input type="date" id="inFecha"></div>
     <button class="btn amber" id="btnAbrirCharla">Abrir charla</button>
     <div class="status-msg" id="inicioStatus"></div>
@@ -147,7 +147,7 @@ canvas.mini-pad{width:100%;height:150px;border:1.5px dashed #b9b2a2;border-radiu
   </details>
   <div class="sec-t">Semanas recientes <span id="semanasNota"></span></div>
   <div id="semanasList"><div class="status-msg">Cargando…</div></div>
-  <div class="version-portal">Portal SSTA · versión v107</div>
+  <div class="version-portal">Portal SSTA · versión v108</div>
 </div>
 
 <!-- ═══════ SEMANA ═══════ -->
@@ -877,7 +877,7 @@ function htmlHojaF005(doc, nueva){
     : (v === 'SIN' ? '<span class="tx">Asistió (sin firma)</span>' : '<span class="tx">✓ Firmó</span>'));
   let h = '<div class="f5"' + (nueva ? ' style="break-before:page;page-break-before:always;"' : '') + '>' +
     '<table class="cab"><colgroup><col style="width:17%"><col><col style="width:22%"></colgroup><tr>' +
-    '<td class="logo"><img src="' + (logoHoja || EMPRESA.logo) + '" alt="INDIMON"></td>' +
+    '<td class="logo"><img src="' + (logoHoja || EMPRESA.logo) + '" alt="Logo"></td>' +
     '<td class="tit">CONTROL DE ASISTENCIA A CAPACITACION, EVENTOS Y REUNIONES.</td>' +
     '<td class="meta-c"><table class="meta"><tr><td colspan="2">Página 1 de 1</td></tr><tr><td colspan="2">Versión: ' + e(F005.version) + '</td></tr>' +
     '<tr><td colspan="2">Código: ' + e(F005.codigo) + '</td></tr><tr><td>Fecha: ' + e(F005.fecha) + '</td><td>Actualización: ' + e(F005.actualizacion) + '</td></tr></table></td>' +
@@ -895,7 +895,7 @@ function htmlHojaF005(doc, nueva){
     h += '<tr><td class="n">' + (i + 1) + '</td><td>' + e(p.nombre) + '</td><td>' + e(p.cedula || '—') + '</td>' + DIAS.map(d=> celdaDia(p, d)).join('') + '</tr>';
   });
   if (!personas.length) h += '<tr><td colspan="10" style="text-align:center;color:#777;">Sin asistentes registrados esta semana.</td></tr>';
-  h += '</tbody></table><div class="pie">Semana ' + e(doc.code) + ' · Impreso el ' + e(new Date().toLocaleString('es-CO')) + ' desde el Portal SSTA · INDIMON</div></div>';
+  h += '</tbody></table><div class="pie">Semana ' + e(doc.code) + ' · Impreso el ' + e(new Date().toLocaleString('es-CO')) + ' desde el ' + e(Empresa.pie()) + '</div></div>';
   return h;
 }
 async function imprimirSemana(doc){ return imprimirSemanas([doc]); }

@@ -149,8 +149,8 @@ body{margin:0;background:repeating-linear-gradient(135deg, rgba(200,70,26,0.035)
   <!-- LANDING -->
   <div id="landing">
     <div class="hdr" style="margin-bottom:26px;">
-      <div class="hdr-left"><div class="hdr-logo">IN</div><div><div class="brand">INDÍMON · SSTA</div><h1>Permiso para Trabajos en Espacios Confinados</h1></div></div>
-      <div class="meta">Código: <b>SSTA-F-117</b> · V2</div>
+      <div class="hdr-left"><div class="hdr-logo" role="img" aria-label="Logo de la empresa"></div><div><div class="brand" data-empresa="marca">Portal SSTA</div><h1>Permiso para Trabajos en Espacios Confinados</h1></div></div>
+      <div class="meta">Código: <b>SSTA-F-117</b></div>
     </div>
     <h2>¿Qué deseas hacer?</h2>
     <p>Este permiso se guarda en una Google Sheet compartida: se abre desde un dispositivo y se cierra desde otro, buscando el permiso por su código.</p>
@@ -207,7 +207,7 @@ body{margin:0;background:repeating-linear-gradient(135deg, rgba(200,70,26,0.035)
   <!-- PANEL DE LECTURA RÁPIDA (permiso ya abierto, sin cerrar) -->
   <div id="readingApp" style="display:none;">
     <div class="hdr">
-      <div class="hdr-left"><div class="hdr-logo">IN</div><div><div class="brand">INDÍMON · SSTA</div><h1>Registrar lectura — Espacios Confinados</h1></div></div>
+      <div class="hdr-left"><div class="hdr-logo" role="img" aria-label="Logo de la empresa"></div><div><div class="brand" data-empresa="marca">Portal SSTA</div><h1>Registrar lectura — Espacios Confinados</h1></div></div>
       <div class="meta">Código: <b id="readingPermitCode">—</b></div>
     </div>
     <div class="status-banner open"><span>Permiso abierto — solo se agregará la lectura, el permiso sigue activo</span></div>
@@ -222,8 +222,8 @@ body{margin:0;background:repeating-linear-gradient(135deg, rgba(200,70,26,0.035)
   <!-- APP -->
   <div id="app">
     <div class="hdr">
-      <div class="hdr-left"><div class="hdr-logo">IN</div><div><div class="brand">INDÍMON · SSTA</div><h1>Permiso para Trabajos en Espacios Confinados</h1></div></div>
-      <div class="meta">Código: <b>SSTA-F-117</b> · Versión: <b>2</b><br>Fecha doc: 24/01/2022 · Act.: 25/01/2023</div>
+      <div class="hdr-left"><div class="hdr-logo" role="img" aria-label="Logo de la empresa"></div><div><div class="brand" data-empresa="marca">Portal SSTA</div><h1>Permiso para Trabajos en Espacios Confinados</h1></div></div>
+      <div class="meta" data-meta="largo">Código: <b>SSTA-F-117</b></div>
     </div>
     <div class="status-banner open" id="statusBanner">
       <span id="statusBannerText">Permiso nuevo — aún no guardado</span>
@@ -428,7 +428,7 @@ const eppData = [
 ];
 const gasPhases = ['Lectura preingreso','Lectura durante el trabajo'];
 // Canales en el mismo orden en que los muestra el detector MSA ALTAIR 5X
-// que usa INDIMON: COMB · O2 · CO · H2S · NH3. Así el brigadista lee la
+// de los detectores multigás: COMB · O2 · CO · H2S · NH3. Así el brigadista lee la
 // pantalla de arriba a abajo y llena los campos en ese mismo orden, sin
 // tener que ir saltando entre casillas.
 const gasTypes = [

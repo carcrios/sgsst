@@ -60,20 +60,20 @@
 <div class="screen active" id="scrLista">
   <div class="hdr">
     <a class="back" href="index.html">← Volver al portal</a>
-    <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><div class="eyebrow">En cada jornada</div>
+    <div class="marca-titulo"><span class="marca" role="img" aria-label="Logo de la empresa"></span><div><div class="eyebrow">En cada jornada</div>
     <h1>Preoperacionales</h1>
     <p>Antes de usar el equipo: la inspección de siempre, ahora dentro del portal</p></div></div>
   </div>
   <div id="avisoSrv"></div><div id="avisoCopia"></div>
   <div class="tabs" id="tabs"><button type="button" data-tab="formularios" class="on">Formularios</button><button type="button" data-tab="registros">Registros</button></div>
   <div id="panel"><div class="empty">Cargando…</div></div>
-  <div class="version-portal">Portal SSTA · versión v107</div>
+  <div class="version-portal">Portal SSTA · versión v108</div>
 </div>
 
 <div class="screen" id="scrForm">
   <div class="hdr">
     <a class="back" href="#" data-volver>← Preoperacionales</a>
-    <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><div class="eyebrow" id="fGrupo"></div>
+    <div class="marca-titulo"><span class="marca" role="img" aria-label="Logo de la empresa"></span><div><div class="eyebrow" id="fGrupo"></div>
     <h1 id="fTitulo"></h1><p id="fCodigo"></p></div></div>
   </div>
   <div id="fCuerpo"></div>
@@ -82,7 +82,7 @@
 <div class="screen" id="scrVer">
   <div class="hdr">
     <a class="back" href="#" data-volver>← Preoperacionales</a>
-    <div class="marca-titulo"><span class="marca" role="img" aria-label="INDIMON"></span><div><div class="eyebrow" id="vGrupo"></div>
+    <div class="marca-titulo"><span class="marca" role="img" aria-label="Logo de la empresa"></span><div><div class="eyebrow" id="vGrupo"></div>
     <h1 id="vTitulo"></h1><p id="vSub"></p></div></div>
   </div>
   <div id="vCuerpo"></div>
@@ -113,11 +113,11 @@ const esSst = ()=> !Sesion.modo() || !Sesion.yo() || ['admin', 'sst'].indexOf(Se
 let rows = [], equipos = [], tab = 'formularios', actual = null, resp = {}, hall = {}, pila = [0], pagina = 0, firmaPad = false;
 
 function show(id){ document.querySelectorAll('.screen').forEach((s)=> s.classList.toggle('active', s.id === id)); window.scrollTo(0, 0); }
-/** Código del formato: el de la instalación original, o el que la empresa le puso en empresa.js. */
-function codigoDe(f){ if (!f.codigo) return ''; if (Empresa.original) return f.codigo; const x = EMPRESA.formatos && EMPRESA.formatos[f.codigo]; return x && x.codigo && x.codigo !== f.codigo ? x.codigo : ''; }
-/** En otra empresa, los centros de trabajo de la lista original (clientes de INDIMON) no salen: van los de empresa.js. */
+/** Código del formato: el que la empresa le puso en empresa.js. */
+function codigoDe(f){ if (!f.codigo) return ''; const x = EMPRESA.formatos && EMPRESA.formatos[f.codigo]; return x && x.codigo && x.codigo !== f.codigo ? x.codigo : ''; }
+/** Los centros de trabajo salen de empresa.js (centrosCosto), no de la lista del formulario original. */
 function opcionesDe(q){
-  if (q.rol === 'centro' && !Empresa.original) { const c = EMPRESA.centrosCosto || []; return c.length ? c.map((x)=> typeof x === 'string' ? x : (x.nombre || x.cliente || String(x))) : null; }
+  if (q.rol === 'centro') { const c = EMPRESA.centrosCosto || []; return c.length ? c.map((x)=> typeof x === 'string' ? x : (x.nombre || x.cliente || String(x))) : null; }
   return q.opciones || [];
 }
 

@@ -1,13 +1,13 @@
 {
   "name": "Portal SSTA — Demo",
   "short_name": "SSTA Demo",
-  "description": "Permisos de trabajo: alturas, caliente, espacios confinados, izajes y eléctrico.",
+  "description": "Sistema de gestión de seguridad y salud en el trabajo: permisos, inspecciones, comités, indicadores y más.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#eef1f4",
-  "theme_color": "#F2C200",
+  "theme_color": "#1f3b57",
   "lang": "es-CO",
   "dir": "ltr",
   "icons": [

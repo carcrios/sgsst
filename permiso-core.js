@@ -1098,10 +1098,10 @@ const PermisoCore = (function () {
 
   /* ================= DRAFTS ================= */
   function draftKeyOpen() {
-    return 'indimon-draft-' + cfg.draftSlug + '-open';
+    return 'ssta-draft-' + cfg.draftSlug + '-open';
   }
   function draftKeyClose(code) {
-    return 'indimon-draft-' + cfg.draftSlug + '-close-' + code;
+    return 'ssta-draft-' + cfg.draftSlug + '-close-' + code;
   }
   function dismissOpenDraftBannerOnEdit() {
     // Antes esto ocultaba el aviso apenas el usuario tocaba cualquier campo,
@@ -2123,7 +2123,7 @@ const PermisoCore = (function () {
     });
     let h = '<div class="hp">' +
       '<table class="hp-cab"><colgroup><col style="width:14%"><col><col style="width:22%">' + (qrImg ? '<col style="width:12%">' : '') + '</colgroup><tr>' +
-      '<td class="hp-logo"><img src="' + (logoHoja_ || EMPRESA.logo) + '" alt="INDIMON"></td>' +
+      '<td class="hp-logo"><img src="' + (logoHoja_ || EMPRESA.logo) + '" alt="Logo"></td>' +
       '<td class="hp-tit">' + esc(titulo) + '<div>' + (permitCode ? 'Registro ' + esc(permitCode) + ' · ' : '') + esc(estado) + '</div>' +
       (atsRelacionado ? '<div>ATS relacionado: <b>' + esc(atsRelacionado) + '</b></div>' : '') +
       (copiadoDe ? '<div>Datos tomados del permiso ' + esc(copiadoDe) + ' (verificado y firmado de nuevo)</div>' : '') + '</td>' +
@@ -2136,7 +2136,7 @@ const PermisoCore = (function () {
       bloquesHoja_(sec.items).forEach((b) => { h += htmlBloque_(b); });
       h += '</div>';
     });
-    h += '<div class="hp-pie">Impreso el ' + esc(new Date().toLocaleString('es-CO')) + ' desde el Portal SSTA · INDIMON</div></div>';
+    h += '<div class="hp-pie">Impreso el ' + esc(new Date().toLocaleString('es-CO')) + ' desde el ' + esc(Empresa.pie()) + '</div></div>';
     let cont = $('hojaPermiso');
     if (!cont) { cont = document.createElement('div'); cont.id = 'hojaPermiso'; document.body.appendChild(cont); }
     cont.innerHTML = h;
